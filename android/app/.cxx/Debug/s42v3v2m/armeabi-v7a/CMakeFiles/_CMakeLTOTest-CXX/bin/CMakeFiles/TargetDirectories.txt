@@ -1,0 +1,4 @@
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir
