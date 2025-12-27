@@ -44,7 +44,9 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
+  include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/rngesturehandler_codegen_autolinked_build/cmake_install.cmake")
   include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/safeareacontext_autolinked_build/cmake_install.cmake")
+  include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/rnscreens_autolinked_build/cmake_install.cmake")
 
 endif()
 
