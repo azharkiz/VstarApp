@@ -10,3 +10,6 @@
 /Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/rnscreens_autolinked_build/CMakeFiles/react_codegen_rnscreens.dir
 /Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/rnscreens_autolinked_build/CMakeFiles/edit_cache.dir
 /Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/rnscreens_autolinked_build/CMakeFiles/rebuild_cache.dir
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/RNVectorIconsSpec_autolinked_build/CMakeFiles/react_codegen_RNVectorIconsSpec.dir
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/RNVectorIconsSpec_autolinked_build/CMakeFiles/edit_cache.dir
+/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/arm64-v8a/RNVectorIconsSpec_autolinked_build/CMakeFiles/rebuild_cache.dir

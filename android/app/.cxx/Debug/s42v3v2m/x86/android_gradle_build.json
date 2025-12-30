@@ -3,6 +3,7 @@
     "/Users/azharsmacbook/Downloads/ReactApp/VstarApp/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
     "/Users/azharsmacbook/Downloads/ReactApp/VstarApp/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
     "/Users/azharsmacbook/Downloads/ReactApp/VstarApp/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+    "/Users/azharsmacbook/Downloads/ReactApp/VstarApp/node_modules/react-native-vector-icons/android/build/generated/source/codegen/jni/CMakeLists.txt",
     "/Users/azharsmacbook/Downloads/ReactApp/VstarApp/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
   ],
   "cleanCommandsComponents": [
@@ -32,6 +33,11 @@
         "/Users/azharsmacbook/.gradle/caches/9.0.0/transforms/f97a0c8835e876dfb08e8efd6d33fd2f/transformed/react-android-0.83.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
         "/Users/azharsmacbook/.gradle/caches/9.0.0/transforms/f97a0c8835e876dfb08e8efd6d33fd2f/transformed/react-android-0.83.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
       ]
+    },
+    "react_codegen_RNVectorIconsSpec::@479809fae146501fd34d": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNVectorIconsSpec"
     },
     "react_codegen_rngesturehandler_codegen::@39f233abcd2c728bc6ec": {
       "toolchain": "toolchain",

@@ -13,6 +13,9 @@ import {
 } from 'react-native-safe-area-context';
 import { ScreenContextProvider } from "./src/services/Context";
 import Login from './src/pages/Login';
+import InBound from './src/pages/InBound';
+import ProductScan from './src/pages/ProductScan';
+import CreatePacking from './src/pages/CreatePacking';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -21,7 +24,7 @@ function App() {
     <SafeAreaProvider>
       <ScreenContextProvider>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <Login />
+        <CreatePacking navigation={{} as any} />
       </ScreenContextProvider>
     </SafeAreaProvider>
   );

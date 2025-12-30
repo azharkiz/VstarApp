@@ -47,6 +47,7 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/x86_64/rngesturehandler_codegen_autolinked_build/cmake_install.cmake")
   include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/x86_64/safeareacontext_autolinked_build/cmake_install.cmake")
   include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/x86_64/rnscreens_autolinked_build/cmake_install.cmake")
+  include("/Users/azharsmacbook/Downloads/ReactApp/VstarApp/android/app/.cxx/Debug/s42v3v2m/x86_64/RNVectorIconsSpec_autolinked_build/cmake_install.cmake")
 
 endif()
 
