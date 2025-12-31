@@ -2,6 +2,7 @@
 import React from "react";
 import { View, Text, Image, TouchableOpacity, FlatList } from "react-native";
 import { useScreenContext } from "../../services/Context";
+import { useLinkProps } from "@react-navigation/native";
 import { Colors } from "../../thems/Colors";
 
 const data = [
@@ -11,7 +12,7 @@ const data = [
   { id: "4", title: "File Name 4", buttonLabel: "Scan" },
 ];
 
-const InBound = () => {
+const InBound = (props) => {
   const screenContext = useScreenContext();
   const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
   const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
@@ -24,7 +25,9 @@ const InBound = () => {
       </View>
 
       <View style={screenStyles.rightCell}>
-        <TouchableOpacity style={screenStyles.scanButton}>
+        <TouchableOpacity style={screenStyles.scanButton} onPress={() => {
+          props.navigation.navigate('ProductScan');
+        }}>
           <Text style={screenStyles.scanButtonText}>{item.buttonLabel}</Text>
         </TouchableOpacity>
       </View>

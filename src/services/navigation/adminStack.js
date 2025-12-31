@@ -3,13 +3,15 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { TouchableOpacity, StyleSheet, Platform, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import Entypo from "react-native-vector-icons/Entypo";
 import Feather from "react-native-vector-icons/Feather";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
 import InBound from "../../Pages/InBound";
 import OutBound from "../../Pages/OutBound";
 import IntMove from "../../Pages/IntMove";
 import PhysInventry from "../../Pages/PhysInventry";
+import ProductScan from "../../Pages/ProductScan";
 
 import { Colors } from "../../thems/Colors";
 
@@ -38,7 +40,7 @@ const AdminBottomTab = () => {
         component={OutBound}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Feather name="home" color={color} size={size} />
+            <Ionicons name="arrow-back-circle-outline" color={color} size={size} />
           ),
         }}
         screenOptions={{
@@ -53,7 +55,7 @@ const AdminBottomTab = () => {
         component={InBound}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Feather name="bar-chart" color={color} size={size} />
+            <Ionicons name="arrow-forward-circle-outline" color={color} size={size} />
           ),
         }}
          screenOptions={{
@@ -66,7 +68,7 @@ const AdminBottomTab = () => {
         component={IntMove}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Feather name="dollar-sign" color={color} size={size} />
+            <Ionicons name="move-outline" color={color} size={size} />
           ),
         }}
          screenOptions={{
@@ -80,7 +82,7 @@ const AdminBottomTab = () => {
         component={PhysInventry}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Feather name="settings" color={color} size={size} />
+            <Entypo name="text-document" color={color} size={size} />
           ),
           tabBarLabel: "Settings",
         }}
@@ -104,14 +106,14 @@ const AdminTab = () => {
           contentStyle: { backgroundColor: "#000000" },
         }}
       />
-      {/* <Stack.Screen
+      <Stack.Screen
         screenOptions={{ headerShown: false }}
-        name="Demo"
-        component={Demo}
+        name="ProductScan"
+        component={ProductScan}
         options={{
           headerShown: false,
         }}
-      /> */}
+      />
 
     </Stack.Navigator>
   );

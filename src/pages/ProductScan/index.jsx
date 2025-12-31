@@ -27,7 +27,7 @@ const statusIcon = (status) => {
   return { name: "ellipse-outline", color: "#bdc3c7" };
 };
 
-const ProductScan = () => {
+const ProductScan = (props) => {
   const [barcode, setBarcode] = useState("");
   const [data, setData] = useState(initialData);
 
@@ -71,7 +71,7 @@ const ProductScan = () => {
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backButton}>
+          <TouchableOpacity style={s.backButton} onPress={() => props.navigation.goBack()}>
             <Ionicons name="arrow-back" color={Colors.name.black} size={25} />
           </TouchableOpacity>
           <Text style={s.title}>Product Scan</Text>
