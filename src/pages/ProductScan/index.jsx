@@ -1,4 +1,3 @@
-// ...existing code...
 import React, { useState } from "react";
 import {
   View,
@@ -42,31 +41,37 @@ const ProductScan = () => {
     setBarcode("");
   };
 
-const renderRow = ({ item, index }) => {
-  const icon = statusIcon(item.status);
-  return (
-    <View style={[s.tableRow, index === data.length - 1 && { borderBottomWidth: 0 }]}>
-      <View style={[s.cell, s.colProduct]}>
-        <Text style={s.cellText}>{item.title}</Text>
+  const renderRow = ({ item, index }) => {
+    const icon = statusIcon(item.status);
+    return (
+      <View style={[s.tableRow, index === data.length - 1 && { borderBottomWidth: 0 }]}>
+        <View style={[s.cell, s.colProduct]}>
+          <Text style={s.cellText}>{item.title}</Text>
+        </View>
+
+        {/* Qty with left divider */}
+        <View style={[s.cell, s.colCenter, s.colDivider]}>
+          <Text style={s.cellText}>{item.qty}</Text>
+        </View>
+
+        {/* Scanned Qty with left divider */}
+        <View style={[s.cell, s.colCenter, s.colDivider]}>
+          <Text style={s.cellText}>{item.scanned}</Text>
+        </View>
+
+        {/* Status with left divider */}
+        <View style={[s.cell, s.colStatus, s.colDivider]}>
+          <Ionicons name={icon.name} color={icon.color} size={20} />
+        </View>
       </View>
-      <View style={[s.cell, s.colCenter]}>
-        <Text style={s.cellText}>{item.qty}</Text>
-      </View>
-      <View style={[s.cell, s.colCenter]}>
-        <Text style={s.cellText}>{item.scanned}</Text>
-      </View>
-      <View style={[s.cell, s.colStatus]}>
-        <Ionicons name={icon.name} color={icon.color} size={20} />
-      </View>
-    </View>
-  );
-};
+    );
+  };
+
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <View style={s.header}>
           <TouchableOpacity style={s.backButton}>
-            {/* <Text style={s.backText}>←</Text> */}
             <Ionicons name="arrow-back" color={Colors.name.black} size={25} />
           </TouchableOpacity>
           <Text style={s.title}>Product Scan</Text>
@@ -86,7 +91,7 @@ const renderRow = ({ item, index }) => {
         </View>
 
         <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
-            <Ionicons name="refresh" color={Colors.name.black} size={20} />
+          <Ionicons name="refresh" color={Colors.name.black} size={20} />
           <Text style={s.rescanText}>Re scan</Text>
         </TouchableOpacity>
 
@@ -95,13 +100,13 @@ const renderRow = ({ item, index }) => {
             <View style={[s.cell, s.colProduct]}>
               <Text style={s.headerText}>Product</Text>
             </View>
-            <View style={[s.cell, s.colCenter]}>
+            <View style={[s.cell, s.colCenter, s.colDivider]}>
               <Text style={s.headerText}>Qty</Text>
             </View>
-            <View style={[s.cell, s.colCenter]}>
+            <View style={[s.cell, s.colCenter, s.colDivider]}>
               <Text style={s.headerText}>Scanned Qty</Text>
             </View>
-            <View style={[s.cell, s.colStatus]}>
+            <View style={[s.cell, s.colStatus, s.colDivider]}>
               <Text style={s.headerText}>Status</Text>
             </View>
           </View>
@@ -110,7 +115,7 @@ const renderRow = ({ item, index }) => {
         </View>
 
         <TouchableOpacity style={s.forwardBtn}>
-            <Ionicons name="arrow-forward" color={Colors.name.white} size={15} />
+          <Ionicons name="arrow-forward" color={Colors.name.white} size={15} />
           <Text style={s.forwardText}> Move forward</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
@@ -204,6 +209,12 @@ const styles = (screenContext, width, height) => ({
   colCenter: { flex: 1, alignItems: "center" },
   colStatus: { width: 72, alignItems: "center" },
 
+  // vertical column divider (left border for columns after Product)
+  colDivider: {
+    borderLeftWidth: 1,
+    borderColor: "#ececec",
+  },
+
   headerText: { fontWeight: "700", color: "#4b5563" },
   cellText: { color: "#111", fontSize: 15 },
 
@@ -225,4 +236,5 @@ const styles = (screenContext, width, height) => ({
 });
 
 export default ProductScan;
-// ...existing
+
+ 

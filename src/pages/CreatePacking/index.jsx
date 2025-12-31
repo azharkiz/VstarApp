@@ -34,7 +34,7 @@ const CreatePacking = ({ navigation }) => {
       style={[s.row, index === boxes.length - 1 && { borderBottomWidth: 0 }]}
     >
       <Text style={s.rowText}>{item.title}</Text>
-      <Ionicons name="arrow-forward" size={20} color={Colors.name?.black || "#111"} />
+      <Ionicons name="arrow-forward" size={20} color={Colors.name.DarkGreen} />
     </TouchableOpacity>
   );
 
@@ -48,7 +48,7 @@ const CreatePacking = ({ navigation }) => {
         <Text style={s.title}>Create Packing</Text>
 
         <TouchableOpacity onPress={onAdd} style={s.headerRight}>
-          <Ionicons name="add" size={28} color={Colors.name?.black || "#111"} />
+          <Ionicons name="add" size={30} color={Colors.name?.black || "#111"} />
           <Text style={s.addText}>Add</Text>
         </TouchableOpacity>
       </View>
@@ -56,6 +56,10 @@ const CreatePacking = ({ navigation }) => {
       <View style={s.listWrapper}>
         <FlatList data={boxes} keyExtractor={(i) => i.id} renderItem={renderItem} scrollEnabled={false} />
       </View>
+        <TouchableOpacity style={s.forwardBtn}>
+                  <Ionicons name="arrow-forward" color={Colors.name.white} size={15} />
+                <Text style={s.forwardText}>Online Submit</Text>
+              </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -71,8 +75,8 @@ const styles = (screenContext, width) => ({
     paddingBottom: 8,
   },
   headerLeft: { padding: 8 },
-  headerRight: { alignItems: "center", padding: 8, flexDirection: "row" },
-  addText: { marginLeft: 4, fontSize: 12 },
+  headerRight: { alignItems: "center", padding: 8 },
+  addText: { marginLeft: 4, fontSize: 16, fontWeight: "bold" },
 
   title: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "600" },
 
@@ -97,6 +101,19 @@ const styles = (screenContext, width) => ({
   },
 
   rowText: { fontSize: 16, color: "#111" },
+    forwardBtn: {
+    backgroundColor: "#155724",
+    alignSelf: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 18,
+    marginTop: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: "row",
+  },
+  forwardText: { color: "#fff", fontWeight: "700", marginLeft: Math.max(4, width * 0.01) },
 });
 
 export default CreatePacking;
