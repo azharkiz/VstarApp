@@ -1,21 +1,61 @@
-import React from "react";
+import React,{ useState } from "react";
 import { View, Text, Image, TouchableOpacity, TextInput } from "react-native";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
+import { useDispatch, useSelector } from "react-redux";
+import { useAuthCheck } from "../../services/Context/AuthContext";
+import { login } from "../../services/redux/slice/authSlice";
+
 
 const Login = () => {
     const screenContext = useScreenContext();
+    const { setIsLoggedIn } = useAuthCheck();
     const screenStyles = styles(
         screenContext,
         screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"],
         screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"]
     );
+    const dispatch = useDispatch();
+    const { status, error } = useSelector((s) => s.auth || {});
+
+    const [employee, setEmployee] = useState("");
+
+    const handleLogin = async () => {
+        try {
+            // dispatch thunk and unwrap to get normalized response
+            const res = await dispatch(login({ employee })).unwrap();
+            console.log("Login response:", res);
+
+            // robust check for successful login: prefer token from top-level or raw
+            const hasToken =
+                Boolean(res?.token) ||
+                Boolean(res?.raw?.token) ||
+                Boolean(res?.raw?.accessToken);
+
+            if (hasToken) {
+                setIsLoggedIn("admin");
+            } else {
+                console.warn("Login did not return a token", res);
+            }
+        } catch (e) {
+            // error stored in slice; optionally show toast/log
+            console.warn("Login failed", e);
+        }
+    };
+
     return (
         <View style={screenStyles.container}>
             <Image source={require('../../assets/vstar.png')} style={screenStyles.logo} />
-            <TextInput placeholder="Emp Code" style={screenStyles.input} secureTextEntry />
-            <TouchableOpacity onPress={() => setScreen('Home')} style={screenStyles.button}>
-                <Text style={screenStyles.buttonText}>Login</Text>
+            <TextInput placeholder="Emp Code" style={screenStyles.input} secureTextEntry onChangeText={(val)=>setEmployee(val)} />
+            {error ? <Text style={screenStyles.errorText}>{String(error)}</Text> : null}
+            <TouchableOpacity
+                onPress={handleLogin}
+                style={screenStyles.button}
+                disabled={status === "loading"}
+            >
+                <Text style={screenStyles.buttonText}>
+                    {status === "loading" ? "Logging in..." : "Login"}
+                </Text>
             </TouchableOpacity>
         </View>
     );
