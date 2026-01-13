@@ -1,9 +1,11 @@
 // ...existing code...
-import React from "react";
+import React,{ useCallback, useEffect} from "react";
 import { View, Text, Image, TouchableOpacity, FlatList } from "react-native";
 import { useScreenContext } from "../../services/Context";
 import { useLinkProps } from "@react-navigation/native";
 import { Colors } from "../../thems/Colors";
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchOutBoundFiles, selectOutBound, fetchFileDetails } from '../../services/redux/slice/outBoundSlice';
 
 const data = [
   { id: "1", title: "File Name 1", buttonLabel: "Scan" },
@@ -17,16 +19,29 @@ const InBound = (props) => {
   const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
   const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const screenStyles = styles(screenContext, width, height);
+  const dispatch = useDispatch();
+  const { items, status, error } = useSelector(selectOutBound);
 
+  const load = useCallback(() => {
+    dispatch(fetchOutBoundFiles());
+  }, [dispatch]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+console.log('Outbound items:', items.files);
+const onScanPress = (file) => {
+  props.navigation.navigate('ProductScan', { file });
+};
   const renderItem = ({ item, index }) => (
     <View style={[screenStyles.row, index === data.length - 1 && { borderBottomWidth: 0 }]}>
       <View style={screenStyles.leftCell}>
-        <Text style={screenStyles.itemText}>{item.title}</Text>
+        <Text style={screenStyles.itemText}>{item.filename}</Text>
       </View>
 
       <View style={screenStyles.rightCell}>
         <TouchableOpacity style={screenStyles.scanButton} onPress={() => {
-          props.navigation.navigate('ProductScan');
+          onScanPress(item.filename);
         }}>
           <Text style={screenStyles.scanButtonText}>{item.buttonLabel}</Text>
         </TouchableOpacity>
@@ -40,7 +55,7 @@ const InBound = (props) => {
 
       <View style={screenStyles.listWrapper}>
         <FlatList
-          data={data}
+          data={items?.files}
           keyExtractor={(i) => i.id}
           renderItem={renderItem}
           scrollEnabled={false}

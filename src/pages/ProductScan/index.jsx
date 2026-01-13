@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Ionicons from "react-native-vector-icons/Ionicons"; 
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { useDispatch, useSelector } from 'react-redux';
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
+import { fetchFileDetails, selectOutBound } from '../../services/redux/slice/outBoundSlice';
 
 const initialData = [
   { id: "1", title: "Product 1", qty: 100, scanned: 90, status: "partial" },
@@ -32,15 +34,80 @@ const ProductScan = (props) => {
   const [data, setData] = useState(initialData);
 
   const screenContext = useScreenContext();
+
   const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
   const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(screenContext, width, height);
+  const { details, detailsStatus, detailsError } = useSelector(selectOutBound);
+  const dispatch = useDispatch();
+  useEffect(() => {
+    if (detailsStatus === "idle") {
+      dispatch(fetchFileDetails(props.route.params.file));
+    }
+  }, [detailsStatus, dispatch, props.route.params.file]);
 
   const onRescan = () => {
     // placeholder: implement rescan logic
     setBarcode("");
   };
+  const handleQRScan = (scannedCode) => {
+    setBarcode(scannedCode);
+  }
+ // ...existing code...
+  useEffect(() => {
+    if (!barcode) return;
 
+    const parts = barcode.split("_");
+    const extractMaterial = parts[0]?.trim();
+    const extractScannedQty = parts[1]?.trim();
+
+    if (!extractMaterial || !extractScannedQty) {
+      console.warn("Invalid barcode format:", barcode);
+      setBarcode("");
+      return;
+    }
+
+    const scannedQty = Number.parseInt(extractScannedQty, 10);
+    if (Number.isNaN(scannedQty) || scannedQty <= 0) {
+      console.warn("Invalid scanned qty:", extractScannedQty);
+      setBarcode("");
+      return;
+    }
+
+    const matching = Array.isArray(details?.data) ? details.data.filter(i => i.Material === extractMaterial) : [];
+    const totalQty = matching.reduce((sum, item) => sum + (Number(item.Delivery_Quantity) || 0), 0);
+
+    setData(prevData => {
+      const idx = prevData.findIndex(item => item.title === extractMaterial);
+      if (idx > -1) {
+        // return a new array (avoid mutating state)
+        return prevData.map((item, i) => {
+          if (i !== idx) return item;
+          const newScanned = (Number(item.scanned) || 0) + scannedQty;
+          const qty = Number(item.qty) || totalQty || 0;
+          return {
+            ...item,
+            scanned: newScanned,
+            status: newScanned >= qty ? "done" : newScanned > 0 ? "partial" : "pending",
+          };
+        });
+      }
+
+      const newItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        title: extractMaterial,
+        qty: totalQty,
+        scanned: scannedQty,
+        status: scannedQty >= totalQty ? "done" : "partial",
+      };
+      return [...prevData, newItem];
+    });
+
+    setBarcode("");
+  }, [barcode, details?.data]);
+// ...existing code...
+
+  console.log('File details:', details);
   const renderRow = ({ item, index }) => {
     const icon = statusIcon(item.status);
     return (
@@ -70,20 +137,26 @@ const ProductScan = (props) => {
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <View style={s.header}>
+        {/* <View style={s.header}>
           <TouchableOpacity style={s.backButton} onPress={() => props.navigation.goBack()}>
             <Ionicons name="arrow-back" color={Colors.name.black} size={25} />
           </TouchableOpacity>
           <Text style={s.title}>Product Scan</Text>
-        </View>
+        </View> */}
 
         <View style={s.inputRow}>
           <TextInput
             placeholder="Barcode"
             value={barcode}
-            onChangeText={setBarcode}
             style={s.input}
             placeholderTextColor="#999"
+            onChangeText={(item) => {
+              if (item !== 0) {
+                handleQRScan(item)
+              }
+            }}
+            autoFocus={true}
+            blurOnSubmit={false}
           />
           <TouchableOpacity style={s.barcodeBtn}>
             <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
@@ -237,4 +310,3 @@ const styles = (screenContext, width, height) => ({
 
 export default ProductScan;
 
- 

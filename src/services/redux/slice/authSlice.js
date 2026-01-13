@@ -1,55 +1,72 @@
-// ...existing code...
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import apiClient from '../../api/apiClient';
+import { getNewToken } from '../../api/tokenHelper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ...existing code...
 export const login = createAsyncThunk(
   'auth/login',
-  async (payload, { rejectWithValue }) => {
-    const body = payload ?? { employee: 'Admin' };
+  async ({ employee }, { rejectWithValue }) => {
     try {
-      const response = await axios.post('https://test.winfocus.in/api/Login', body, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // send body as object (your API expects POST /Login)
+      const response = await apiClient.post('/Login', { employee });
+      const data = response?.data || {};
 
-      // Normalize response shape: return token and user where possible
-      const data = response?.data ?? {};
-      const token =
-        data.token ?? data.Token ?? data.data?.token ?? data.data?.Token ?? null;
-      const user = data.user ?? data.User ?? data.data?.user ?? data.data?.User ?? null;
+      const token = data.token || null;
+      const refreshToken = data.refreshToken || null;
 
-      return { token, user, raw: data };
-    } catch (err) {
-      const message = err?.response?.data?.message || err.message || 'Login failed';
-      return rejectWithValue(message);
+      // persist auth info for refresh flow
+      await AsyncStorage.setItem(
+        'auth',
+        JSON.stringify({ token, refreshToken, employee: data.employee ?? employee })
+      );
+
+      // set default header for future requests
+      if (token) apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+
+      return data;
+    } catch (error) {
+      const payload = error?.response?.data ?? { message: error?.message ?? 'Login failed' };
+      return rejectWithValue(payload);
     }
   }
 );
 
-const initialState = {
-  token: null,
-  user: null,
-  loggedIn: false,
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-  error: null,
-};
+export const refreshAuthToken = createAsyncThunk(
+  'auth/refresh-token',
+  async (_, { rejectWithValue }) => {
+    try {
+      // getNewToken should update AsyncStorage and return the new access token string
+      const newToken = await getNewToken();
+      if (!newToken) return rejectWithValue({ message: 'Refresh failed' });
+
+      apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+      return { token: newToken };
+    } catch (error) {
+      const payload = error?.response?.data ?? { message: error?.message ?? 'Refresh failed' };
+      return rejectWithValue(payload);
+    }
+  }
+);
+// ...existing code...
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: {
+    status: 'idle',
+    error: null,
+    token: null,
+    refreshToken: null,
+    employee: null,
+  },
   reducers: {
-    setAuth(state, action) {
-      state.token = action.payload?.token ?? null;
-      state.user = action.payload?.user ?? null;
-      state.loggedIn = !!state.token;
-      state.error = null;
-      state.status = 'succeeded';
-    },
-    clearAuth(state) {
+    logout(state) {
       state.token = null;
-      state.user = null;
-      state.loggedIn = false;
-      state.status = 'idle';
-      state.error = null;
+      state.refreshToken = null;
+      state.employee = null;
+      // clear persisted auth
+      AsyncStorage.removeItem('auth').catch(() => {});
+      delete apiClient.defaults.headers.common.Authorization;
     },
   },
   extraReducers: (builder) => {
@@ -60,18 +77,24 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.token = action.payload?.token ?? null;
-        state.user = action.payload?.user ?? null;
-        state.loggedIn = !!state.token;
-        state.error = null;
+        const payload = action.payload || {};
+        state.token = payload.token ?? null;
+        state.refreshToken = payload.refreshToken ?? null;
+        state.employee = payload.employee ?? null;
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload || action.error?.message || 'Login failed';
+        state.error = action.payload ?? action.error?.message;
+      })
+      .addCase(refreshAuthToken.fulfilled, (state, action) => {
+        state.token = action.payload?.token ?? state.token;
+      })
+      .addCase(refreshAuthToken.rejected, (state, action) => {
+        state.error = action.payload ?? action.error?.message;
       });
   },
 });
 
-export const { setAuth, clearAuth } = authSlice.actions;
+export const { logout } = authSlice.actions;
+
 export default authSlice.reducer;
-// ...existing code...
