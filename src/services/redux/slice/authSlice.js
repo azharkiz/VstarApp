@@ -9,7 +9,9 @@ export const login = createAsyncThunk(
   async ({ employee }, { rejectWithValue }) => {
     try {
       // send body as object (your API expects POST /Login)
+      console.log('Logging in with employee code:', apiClient.getUri());
       const response = await apiClient.post('/Login', { employee });
+      console.log('Login response:', response);
       const data = response?.data || {};
 
       const token = data.token || null;

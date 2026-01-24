@@ -12,6 +12,9 @@ import OutBound from "../../Pages/OutBound";
 import IntMove from "../../Pages/IntMove";
 import PhysInventry from "../../Pages/PhysInventry";
 import ProductScan from "../../Pages/ProductScan";
+import PackingScan from "../../Pages/PackaingScan";
+import CreatePacking from "../../Pages/CreatePacking";
+import PackingSection from "../../Pages/PackingSection";
 
 import { Colors } from "../../thems/Colors";
 
@@ -114,7 +117,31 @@ const AdminTab = () => {
           headerShown: false,
         }}
       />
-
+      <Stack.Screen
+        screenOptions={{ headerShown: false }}
+        name="CreatePacking"
+        component={CreatePacking}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        screenOptions={{ headerShown: false }}
+        name="PackingSection"
+        component={PackingSection}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        screenOptions={{ headerShown: false }}
+        name="PackingScan"
+        component={PackingScan}
+        options={{
+          headerShown: false,
+        }}
+      />
+      
     </Stack.Navigator>
   );
 };

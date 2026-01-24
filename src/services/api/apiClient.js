@@ -3,7 +3,7 @@ import Config from 'react-native-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNewToken } from './tokenHelper';
 
-const BASE_URL = Config?.API_URL || 'https://test.winfocus.in/api';
+const BASE_URL = Config?.API_URL || 'http://115.247.202.166:56854/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,

@@ -1,134 +1,238 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   FlatList,
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from "react-redux";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
-import { fetchFileDetails, selectOutBound } from '../../services/redux/slice/outBoundSlice';
+import { normalizeFileName } from "../../services/helper/common";
+import {
+  fetchFileDetails,
+  selectOutBound,
+  setScannedData,
+} from "../../services/redux/slice/outBoundSlice";
 
-const initialData = [
-  { id: "1", title: "Product 1", qty: 100, scanned: 90, status: "partial" },
-  { id: "2", title: "Product 2", qty: 50, scanned: 50, status: "done" },
-  { id: "3", title: "Product 3", qty: 150, scanned: 0, status: "pending" },
-  { id: "4", title: "Content 4", qty: 20, scanned: 20, status: "done" },
-];
+/* ---------------- helpers ---------------- */
 
 const statusIcon = (status) => {
   if (status === "done") return { name: "checkmark-circle", color: "#155724" };
-  if (status === "partial") return { name: "checkmark-circle", color: "#f39c12" };
+  if (status === "partial")
+    return { name: "checkmark-circle", color: "#f39c12" };
   return { name: "ellipse-outline", color: "#bdc3c7" };
 };
 
+/* ---------------- component ---------------- */
+
 const ProductScan = (props) => {
-  const [barcode, setBarcode] = useState("");
-  const [data, setData] = useState(initialData);
-
-  const screenContext = useScreenContext();
-
-  const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
-  const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
-  const s = styles(screenContext, width, height);
-  const { details, detailsStatus, detailsError } = useSelector(selectOutBound);
   const dispatch = useDispatch();
-  useEffect(() => {
-    if (detailsStatus === "idle") {
-      dispatch(fetchFileDetails(props.route.params.file));
-    }
-  }, [detailsStatus, dispatch, props.route.params.file]);
+  const screenContext = useScreenContext();
+const alertShownRef = useRef(false);
+  const fileName = props.route.params?.fileName;
 
-  const onRescan = () => {
-    // placeholder: implement rescan logic
-    setBarcode("");
-  };
-  const handleQRScan = (scannedCode) => {
-    setBarcode(scannedCode);
-  }
- // ...existing code...
+  const { details, detailsStatus, scannedDataByFile } =
+    useSelector(selectOutBound);
+    console.log('ProductScan - fileName:', scannedDataByFile);
+
+const key = normalizeFileName(fileName);
+const reduxScannedData = scannedDataByFile[key] || [];
+
+  const [barcode, setBarcode] = useState("");
+  const [scannedDataLocal, setScannedDataLocal] = useState([]);
+  const [blockedMaterials, setBlockedMaterials] = useState([]);
+
+  const width =
+    screenContext[
+      screenContext.isPortrait ? "windowWidth" : "windowHeight"
+    ];
+  const height =
+    screenContext[
+      screenContext.isPortrait ? "windowHeight" : "windowWidth"
+    ];
+  const s = styles(screenContext, width, height);
+
+  /* ---------------- fetch file details ---------------- */
+
   useEffect(() => {
-    if (!barcode) return;
+    if (detailsStatus === "idle" && fileName) {
+      dispatch(fetchFileDetails(fileName));
+    }
+  }, [detailsStatus, fileName, dispatch]);
+
+  /* ---------------- redux → local sync (SAFE, ONE TIME) ---------------- */
+
+  useEffect(() => {
+    setScannedDataLocal(reduxScannedData);
+  }, [fileName]); // 👈 important: NOT watching reduxScannedData
+
+  /* ---------------- barcode scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
+
+  useEffect(() => {
+    if (!barcode || !fileName) return;
 
     const parts = barcode.split("_");
-    const extractMaterial = parts[0]?.trim();
-    const extractScannedQty = parts[1]?.trim();
+    const material = parts[0]?.trim();
+    const scannedQtyRaw = parts[1]?.trim();
 
-    if (!extractMaterial || !extractScannedQty) {
-      console.warn("Invalid barcode format:", barcode);
-      setBarcode("");
-      return;
-    }
+  if (!material || !scannedQtyRaw) {
+  showAlert("Invalid barcode format");
+  setBarcode("");
+  return;
+}
 
-    const scannedQty = Number.parseInt(extractScannedQty, 10);
-    if (Number.isNaN(scannedQty) || scannedQty <= 0) {
-      console.warn("Invalid scanned qty:", extractScannedQty);
-      setBarcode("");
-      return;
-    }
+if (
+  blockedMaterials.includes(material) ||
+  scannedDataLocal.some(
+    (i) => i.title === material && i.status === "done"
+  )
+) {
+  showAlert("Item already completed", "This item is fully scanned");
+  setBarcode("");
+  return;
+}
 
-    const matching = Array.isArray(details?.data) ? details.data.filter(i => i.Material === extractMaterial) : [];
-    const totalQty = matching.reduce((sum, item) => sum + (Number(item.Delivery_Quantity) || 0), 0);
+const scannedQty = Number(scannedQtyRaw);
+if (Number.isNaN(scannedQty) || scannedQty <= 0) {
+  showAlert("Invalid scanned quantity");
+  setBarcode("");
+  return;
+}
 
-    setData(prevData => {
-      const idx = prevData.findIndex(item => item.title === extractMaterial);
-      if (idx > -1) {
-        // return a new array (avoid mutating state)
-        return prevData.map((item, i) => {
-          if (i !== idx) return item;
-          const newScanned = (Number(item.scanned) || 0) + scannedQty;
-          const qty = Number(item.qty) || totalQty || 0;
-          return {
-            ...item,
-            scanned: newScanned,
-            status: newScanned >= qty ? "done" : newScanned > 0 ? "partial" : "pending",
-          };
-        });
+const matching = Array.isArray(details?.data)
+  ? details.data.filter((i) => i.Material === material)
+  : [];
+
+    const totalQty = matching.reduce(
+      (sum, item) => sum + Number(item.Delivery_Quantity || 0),
+      0
+    );
+
+    let updated;
+    const index = scannedDataLocal.findIndex(
+      (i) => i.title === material
+    );
+
+    if (index > -1) {
+      const existing = scannedDataLocal[index];
+      const newScanned = existing.scanned + scannedQty;
+
+      const status =
+        newScanned >= existing.qty
+          ? "done"
+          : "partial";
+
+      updated = scannedDataLocal.map((item, i) =>
+        i === index
+          ? { ...item, scanned: newScanned, status }
+          : item
+      );
+
+      if (status === "done") {
+        setBlockedMaterials((p) => [...new Set([...p, material])]);
       }
+    } else {
+      const status =
+        scannedQty >= totalQty ? "done" : "partial";
 
-      const newItem = {
-        id: Math.random().toString(36).substr(2, 9),
-        title: extractMaterial,
-        qty: totalQty,
-        scanned: scannedQty,
-        status: scannedQty >= totalQty ? "done" : "partial",
-      };
-      return [...prevData, newItem];
-    });
+      updated = [
+        ...scannedDataLocal,
+        {
+          id: Math.random().toString(36).slice(2),
+          title: material,
+          qty: totalQty,
+          scanned: scannedQty,
+          status,
+        },
+      ];
+
+      if (status === "done") {
+        setBlockedMaterials((p) => [...new Set([...p, material])]);
+      }
+    }
+
+    /* ✅ SINGLE UPDATE + SINGLE DISPATCH */
+    setScannedDataLocal(updated);
+    dispatch(
+      setScannedData({
+        fileName,
+        data: updated,
+      })
+    );
 
     setBarcode("");
-  }, [barcode, details?.data]);
-// ...existing code...
+  }, [barcode]); // 👈 ONLY barcode triggers this
 
-  console.log('File details:', details);
+const showAlert = (title, message = "") => {
+  if (alertShownRef.current) return;
+
+  alertShownRef.current = true;
+
+  setTimeout(() => {
+    Alert.alert(title, message, [
+      {
+        text: "OK",
+        onPress: () => {
+          alertShownRef.current = false;
+        },
+      },
+    ]);
+  }, 100);
+};
+
+/* ---------------- actions ---------------- */
+
+  const onRescan = () => {
+    setBarcode("");
+    setScannedDataLocal([]);
+    setBlockedMaterials([]);
+    dispatch(
+      setScannedData({
+        fileName,
+        data: [],
+      })
+    );
+  };
+
+  const onScanPress = () => {
+    props.navigation.navigate("CreatePacking");
+  };
+
+  /* ---------------- render ---------------- */
+
   const renderRow = ({ item, index }) => {
     const icon = statusIcon(item.status);
     return (
-      <View style={[s.tableRow, index === data.length - 1 && { borderBottomWidth: 0 }]}>
+      <View
+        style={[
+          s.tableRow,
+          index === scannedDataLocal.length - 1 && {
+            borderBottomWidth: 0,
+          },
+        ]}
+      >
         <View style={[s.cell, s.colProduct]}>
           <Text style={s.cellText}>{item.title}</Text>
         </View>
-
-        {/* Qty with left divider */}
         <View style={[s.cell, s.colCenter, s.colDivider]}>
           <Text style={s.cellText}>{item.qty}</Text>
         </View>
-
-        {/* Scanned Qty with left divider */}
         <View style={[s.cell, s.colCenter, s.colDivider]}>
           <Text style={s.cellText}>{item.scanned}</Text>
         </View>
-
-        {/* Status with left divider */}
         <View style={[s.cell, s.colStatus, s.colDivider]}>
-          <Ionicons name={icon.name} color={icon.color} size={20} />
+          <Ionicons
+            name={icon.name}
+            color={icon.color}
+            size={20}
+          />
         </View>
       </View>
     );
@@ -136,65 +240,58 @@ const ProductScan = (props) => {
 
   return (
     <SafeAreaView style={s.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        {/* <View style={s.header}>
-          <TouchableOpacity style={s.backButton} onPress={() => props.navigation.goBack()}>
-            <Ionicons name="arrow-back" color={Colors.name.black} size={25} />
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <View style={s.header}>
           <Text style={s.title}>Product Scan</Text>
-        </View> */}
+        </View>
 
         <View style={s.inputRow}>
           <TextInput
             placeholder="Barcode"
             value={barcode}
             style={s.input}
-            placeholderTextColor="#999"
-            onChangeText={(item) => {
-              if (item !== 0) {
-                handleQRScan(item)
-              }
-            }}
-            autoFocus={true}
-            blurOnSubmit={false}
+            onChangeText={setBarcode}
+            autoFocus
           />
-          <TouchableOpacity style={s.barcodeBtn}>
-            <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={s.barcodeBtn}>
+                      <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
+                    </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
-          <Ionicons name="refresh" color={Colors.name.black} size={20} />
-          <Text style={s.rescanText}>Re scan</Text>
-        </TouchableOpacity>
+        {scannedDataLocal.length > 0 && (
+          <>
+            <TouchableOpacity
+              style={s.rescanBtn}
+              onPress={onRescan}
+            >
+              <Ionicons name="refresh" size={18} />
+              <Text> Re-scan</Text>
+            </TouchableOpacity>
 
-        <View style={s.tableWrap}>
-          <View style={s.tableHeader}>
-            <View style={[s.cell, s.colProduct]}>
-              <Text style={s.headerText}>Product</Text>
+            <View style={s.tableWrap}>
+              <FlatList
+                data={scannedDataLocal}
+                keyExtractor={(i) => i.id}
+                renderItem={renderRow}
+              />
             </View>
-            <View style={[s.cell, s.colCenter, s.colDivider]}>
-              <Text style={s.headerText}>Qty</Text>
-            </View>
-            <View style={[s.cell, s.colCenter, s.colDivider]}>
-              <Text style={s.headerText}>Scanned Qty</Text>
-            </View>
-            <View style={[s.cell, s.colStatus, s.colDivider]}>
-              <Text style={s.headerText}>Status</Text>
-            </View>
-          </View>
 
-          <FlatList data={data} keyExtractor={(i) => i.id} renderItem={renderRow} scrollEnabled={false} />
-        </View>
-
-        <TouchableOpacity style={s.forwardBtn}>
-          <Ionicons name="arrow-forward" color={Colors.name.white} size={15} />
-          <Text style={s.forwardText}> Move forward</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={s.forwardBtn}
+              onPress={onScanPress}
+            >
+              <Text style={s.forwardText}>Move forward</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
+
 
 const styles = (screenContext, width, height) => ({
   container: { flex: 1, backgroundColor: "#fff" },

@@ -1,119 +1,222 @@
-// ...existing code...
-import React from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Modal,
+  TextInput,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useDispatch, useSelector } from 'react-redux';
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
+import { setBoxList, selectOutBound} from '../../services/redux/slice/outBoundSlice';
 
-const boxes = [
-  { id: "1", title: "Box 1" },
-  { id: "2", title: "Box 2" },
-  { id: "3", title: "Box 3" },
-  { id: "4", title: "Box 4" },
-];
+const CreatePacking = (props) => {
 
-const CreatePacking = ({ navigation }) => {
-  const screenContext = useScreenContext();
-  const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
-  const s = styles(screenContext, width);
+  const dispatch = useDispatch();
 
-  const onAdd = () => {
-    // TODO: open add modal / navigate to add screen
+  const { BoxList } = useSelector(selectOutBound);
+  const [boxes, setBoxes] = useState(BoxList);
+
+  const [showModal, setShowModal] = useState(false);
+  const [boxName, setBoxName] = useState("");
+
+  const handleAddBox = () => {
+    if (!boxName.trim()) return;
+
+    setBoxes((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        label: boxName.trim(),
+      },
+    ]);
+
+    setBoxName("");
+    setShowModal(false);
   };
 
-  const onOpenBox = (item) => {
-    // TODO: navigate to box detail
-    // navigation?.navigate('BoxDetail', { id: item.id });
+   useEffect(() => {
+    // avoid dispatching when redux already equals local to prevent infinite update loop
+    try {
+      const localStr = JSON.stringify(boxes || []);
+      const reduxStr = JSON.stringify(BoxList || []);
+      if (localStr !== reduxStr) {
+        dispatch(setBoxList(boxes));
+      }
+    } catch (e) {
+      // fallback: if serialization fails, still dispatch once
+      dispatch(setBoxList(boxes));
+    }
+  }, [boxes, BoxList, dispatch]);
+
+  const handleBoxPress = (box) => {
+    // Navigate to the box details screen or perform any action
+    console.log("Box pressed:", box);
+    props.navigation.navigate('PackingSection', { boxName: box.label });
+
   };
 
-  const renderItem = ({ item, index }) => (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => onOpenBox(item)}
-      style={[s.row, index === boxes.length - 1 && { borderBottomWidth: 0 }]}
-    >
-      <Text style={s.rowText}>{item.title}</Text>
-      <Ionicons name="arrow-forward" size={20} color={Colors.name.DarkGreen} />
+  const renderItem = ({ item }) => (
+    <TouchableOpacity style={styles.row} onPress={() => handleBoxPress(item)}>
+      <Text style={styles.rowText}>{item.label}</Text>
+      <Ionicons name="arrow-forward" size={20} color="#444" />
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack?.()} style={s.headerLeft}>
-          <Ionicons name="arrow-back" size={24} color={Colors.name?.black || "#111"} />
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} />
         </TouchableOpacity>
 
-        <Text style={s.title}>Create Packing</Text>
+        <Text style={styles.title}>Create Packing</Text>
 
-        <TouchableOpacity onPress={onAdd} style={s.headerRight}>
-          <Ionicons name="add" size={30} color={Colors.name?.black || "#111"} />
-          <Text style={s.addText}>Add</Text>
+        <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addBtn}>
+          <Ionicons name="add" size={26} />
+          <Text style={styles.addText}>Add</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={s.listWrapper}>
-        <FlatList data={boxes} keyExtractor={(i) => i.id} renderItem={renderItem} scrollEnabled={false} />
+      {/* Table */}
+      <View style={styles.card}>
+        <FlatList
+          data={boxes}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ItemSeparatorComponent={() => <View style={styles.divider} />}
+        />
       </View>
-        <TouchableOpacity style={s.forwardBtn}>
-                  <Ionicons name="arrow-forward" color={Colors.name.white} size={15} />
-                <Text style={s.forwardText}>Online Submit</Text>
+
+      {/* 🔹 Add Box Popup */}
+      <Modal
+        transparent
+        visible={showModal}
+        animationType="fade"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add New Box</Text>
+
+            <TextInput
+              placeholder="Enter box name"
+              value={boxName}
+              onChangeText={setBoxName}
+              style={styles.input}
+              autoFocus
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => {
+                  setBoxName("");
+                  setShowModal(false);
+                }}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity style={styles.saveBtn} onPress={handleAddBox}>
+                <Text style={styles.saveText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
-const styles = (screenContext, width) => ({
+const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  headerLeft: { padding: 8 },
-  headerRight: { alignItems: "center", padding: 8 },
-  addText: { marginLeft: 4, fontSize: 16, fontWeight: "bold" },
 
   title: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "600" },
 
-  listWrapper: {
-    marginHorizontal: 18,
-    marginTop: 16,
+  addBtn: { alignItems: "center" },
+  addText: { fontSize: 12, marginTop: -4 },
+
+  card: {
+    marginHorizontal: 16,
+    marginTop: 20,
     borderWidth: 1,
-    borderColor: "#ececec",
-    borderRadius: 10,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#fff",
   },
 
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 22,
-    paddingHorizontal: 18,
-    borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
   },
 
-  rowText: { fontSize: 16, color: "#111" },
-    forwardBtn: {
-    backgroundColor: "#155724",
-    alignSelf: "flex-end",
+  rowText: { fontSize: 16 },
+
+  divider: { height: 1, backgroundColor: "#e5e7eb" },
+
+  /* 🔹 Modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 18,
-    marginTop: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 8,
-    flexDirection: "row",
   },
-  forwardText: { color: "#fff", fontWeight: "700", marginLeft: Math.max(4, width * 0.01) },
+
+  modalCard: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 16,
+  },
+
+  cancelBtn: { marginRight: 12 },
+  cancelText: { color: "#6b7280", fontWeight: "600" },
+
+  saveBtn: {
+    backgroundColor: "#111827",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  saveText: { color: "#fff", fontWeight: "600" },
 });
+
 
 export default CreatePacking;

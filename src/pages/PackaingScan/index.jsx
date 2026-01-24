@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,66 +10,68 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Ionicons from "react-native-vector-icons/Ionicons"; 
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
+import { useLinkProps } from "@react-navigation/native";
 
 const initialData = [
   { id: "1", title: "Product 1", qty: 100, scanned: 90 },
   { id: "2", title: "Product 2", qty: 50, scanned: 50 },
   { id: "3", title: "Product 3", qty: 150, scanned: 0 },
-  { id: "4", title: "Content 4", qty: 20, scanned: 20  },
+  { id: "4", title: "Content 4", qty: 20, scanned: 20 },
 ];
 
-const PackingScan = () => {
-  const [barcode, setBarcode] = useState("");
+const PackingScan = (props) => {
+  const [boxQrcode, setBoxQrcode] = useState("");
+  const [itemQrcode, setItemQrcode] = useState("");
   const [data, setData] = useState(initialData);
+  const [boxQRtext, setBoxQRtext] = useState("");
 
   const screenContext = useScreenContext();
   const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
   const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(screenContext, width, height);
 
-  const onRescan = () => {
-    // placeholder: implement rescan logic
-    setBarcode("");
-  };
+  const handleBoxQRScan = (scannedCode) => {
 
-  const renderRow = ({ item, index }) => {
-    return (
-      <View style={[s.tableRow, index === data.length - 1 && { borderBottomWidth: 0 }]}>
-        <View style={[s.cell, s.colProduct]}>
-          <Text style={s.cellText}>{item.title}</Text>
-        </View>
+    if (boxQrcode.length == 0) {
+      setBoxQrcode(scannedCode);
+      // props.navigation.navigate("PackingSection", { boxCode: scannedCode });
+    }
 
-        {/* middle column with left divider */}
-        <View style={[s.cell, s.colCenter, s.colDivider]}>
-          <Text style={s.cellText}>{item.qty}</Text>
-        </View>
 
-        {/* right column with left divider */}
-        <View style={[s.cell, s.colCenter, s.colDivider]}>
-          <Text style={s.cellText}>{item.scanned}</Text>
-        </View>
-      </View>
-    );
-  };
+
+  }
+
+
+  useEffect(() => {
+
+    return () => {
+      setBoxQRtext("");
+    };
+  }, [boxQRtext]);
 
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backButton}>
+          {/* <TouchableOpacity style={s.backButton}>
             <Ionicons name="arrow-back" color={Colors.name.black} size={25} />
-          </TouchableOpacity>
-          <Text style={s.title}>Product Scan</Text>
+          </TouchableOpacity> */}
+          <Text style={s.title}>Packing Scan</Text>
         </View>
 
         <View style={s.inputRow}>
+
           <TextInput
             placeholder="Box Barcode"
-            value={barcode}
-            onChangeText={setBarcode}
+            value={boxQrcode}
+            onChangeText={(item) => {
+              if (item !== 0) {
+                handleBoxQRScan(item)
+              }
+            }}
             style={s.input}
             placeholderTextColor="#999"
           />
@@ -78,44 +80,7 @@ const PackingScan = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={s.inputRowSec}>
-          <TextInput
-            placeholder="Barcode"
-            value={barcode}
-            onChangeText={setBarcode}
-            style={s.input}
-            placeholderTextColor="#999"
-          />
-          <TouchableOpacity style={s.barcodeBtn}>
-            <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
-          </TouchableOpacity>
-        </View>
 
-        <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
-          <Ionicons name="refresh" color={Colors.name.black} size={20} />
-          <Text style={s.rescanText}>Re scan</Text>
-        </TouchableOpacity>
-
-        <View style={s.tableWrap}>
-          <View style={s.tableHeader}>
-            <View style={[s.cell, s.colProduct]}>
-              <Text style={s.headerText}>Product</Text>
-            </View>
-            <View style={[s.cell, s.colCenter, s.colDivider]}>
-              <Text style={s.headerText}>Qty</Text>
-            </View>
-            <View style={[s.cell, s.colCenter, s.colDivider]}>
-              <Text style={s.headerText}>Packed Qty</Text>
-            </View>
-          </View>
-
-          <FlatList data={data} keyExtractor={(i) => i.id} renderItem={renderRow} scrollEnabled={false} />
-        </View>
-
-        <TouchableOpacity style={s.forwardBtn}>
-          <Ionicons name="arrow-forward" color={Colors.name.white} size={15} />
-          <Text style={s.forwardText}> Offline Submit</Text>
-        </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

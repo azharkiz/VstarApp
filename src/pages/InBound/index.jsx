@@ -30,8 +30,8 @@ const InBound = (props) => {
     load();
   }, [load]);
 console.log('Outbound items:', items.files);
-const onScanPress = (file) => {
-  props.navigation.navigate('ProductScan', { file });
+const onScanPress = (fileName) => {
+  props.navigation.navigate('ProductScan', { fileName: fileName });
 };
   const renderItem = ({ item, index }) => (
     <View style={[screenStyles.row, index === data.length - 1 && { borderBottomWidth: 0 }]}>

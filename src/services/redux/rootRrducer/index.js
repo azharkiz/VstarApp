@@ -19,6 +19,7 @@ import outBoundReducer from '../slice/outBoundSlice';
 
 const reducers = {
   auth: authReducer,
+  outbound: outBoundReducer,
 };
 
 // only attach outbound if the import resolved

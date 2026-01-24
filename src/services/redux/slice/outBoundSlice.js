@@ -1,6 +1,7 @@
 // ...existing code...
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../api/apiClient';
+import { normalizeFileName } from '../../helper/common';
 
 // thunk to fetch outbound files
 export const fetchOutBoundFiles = createAsyncThunk(
@@ -28,7 +29,7 @@ export const fetchFileDetails = createAsyncThunk(
       const response = await apiClient.post('/data', body, {
         headers: { 'Content-Type': 'application/json' },
       });
-
+      console.log("File details response:", response);
       return response?.data ?? null;
     } catch (error) {
       return rejectWithValue(
@@ -42,11 +43,13 @@ const initialState = {
   items: [],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
-
+  scannedDataByFile: {}, // added to store scanned items
   // new fields for file details
   details: null,
   detailsStatus: 'idle',
   detailsError: null,
+  BoxList: [],
+  boxCode: [],
 };
 
 const outBoundSlice = createSlice({
@@ -64,6 +67,34 @@ const outBoundSlice = createSlice({
       state.detailsStatus = 'idle';
       state.detailsError = null;
     },
+   setScannedData: (state, action) => {
+      const { fileName, data } = action.payload;
+
+      // 🔐 safety guard (optional but recommended)
+      if (!state.scannedDataByFile) {
+        state.scannedDataByFile = {};
+      }
+
+      const key = normalizeFileName(fileName);
+      state.scannedDataByFile[key] = data;
+  },
+  setBoxList(state, action) {
+    state.BoxList = action.payload;
+  },
+  setBoxCode(state, action) {
+    const { boxName, boxCodeNumber } = action.payload;
+
+      const index = state.boxCode.findIndex(
+        item => item.boxName === boxName
+      );
+
+      if (index >= 0) {
+        state.boxCode[index].boxCodeNumber = boxCodeNumber;
+      } else {
+        state.boxCode.push({ boxName, boxCodeNumber });
+      }
+    }
+
   },
   extraReducers: (builder) => {
     builder
@@ -96,7 +127,7 @@ const outBoundSlice = createSlice({
   },
 });
 
-export const { clearOutBound, clearOutBoundDetails } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
@@ -107,6 +138,9 @@ export const selectOutBound = (state) => {
     details: slice.details ?? null,
     detailsStatus: slice.detailsStatus ?? 'idle',
     detailsError: slice.detailsError ?? null,
+    scannedDataByFile: slice.scannedDataByFile ?? {},
+    BoxList: slice.BoxList ?? [],
+    boxCode: slice.boxCode ?? [],
   };
 };
 
