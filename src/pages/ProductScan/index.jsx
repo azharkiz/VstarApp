@@ -19,6 +19,7 @@ import {
   fetchFileDetails,
   selectOutBound,
   setScannedData,
+  resetOutBoundState,
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
@@ -35,15 +36,15 @@ const statusIcon = (status) => {
 const ProductScan = (props) => {
   const dispatch = useDispatch();
   const screenContext = useScreenContext();
-const alertShownRef = useRef(false);
+  const alertShownRef = useRef(false);
   const fileName = props.route.params?.fileName;
 
   const { details, detailsStatus, scannedDataByFile } =
     useSelector(selectOutBound);
-    console.log('ProductScan - fileName:', scannedDataByFile);
+  console.log('ProductScan - fileName:', scannedDataByFile);
 
-const key = normalizeFileName(fileName);
-const reduxScannedData = scannedDataByFile[key] || [];
+  const key = normalizeFileName(fileName);
+  const reduxScannedData = scannedDataByFile[key] || [];
 
   const [barcode, setBarcode] = useState("");
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
@@ -51,11 +52,11 @@ const reduxScannedData = scannedDataByFile[key] || [];
 
   const width =
     screenContext[
-      screenContext.isPortrait ? "windowWidth" : "windowHeight"
+    screenContext.isPortrait ? "windowWidth" : "windowHeight"
     ];
   const height =
     screenContext[
-      screenContext.isPortrait ? "windowHeight" : "windowWidth"
+    screenContext.isPortrait ? "windowHeight" : "windowWidth"
     ];
   const s = styles(screenContext, width, height);
 
@@ -82,33 +83,33 @@ const reduxScannedData = scannedDataByFile[key] || [];
     const material = parts[0]?.trim();
     const scannedQtyRaw = parts[1]?.trim();
 
-  if (!material || !scannedQtyRaw) {
-  showAlert("Invalid barcode format");
-  setBarcode("");
-  return;
-}
+    if (!material || !scannedQtyRaw) {
+      showAlert("Invalid barcode format");
+      setBarcode("");
+      return;
+    }
 
-if (
-  blockedMaterials.includes(material) ||
-  scannedDataLocal.some(
-    (i) => i.title === material && i.status === "done"
-  )
-) {
-  showAlert("Item already completed", "This item is fully scanned");
-  setBarcode("");
-  return;
-}
+    if (
+      blockedMaterials.includes(material) ||
+      scannedDataLocal.some(
+        (i) => i.title === material && i.status === "done"
+      )
+    ) {
+      showAlert("Item already completed", "This item is fully scanned");
+      setBarcode("");
+      return;
+    }
 
-const scannedQty = Number(scannedQtyRaw);
-if (Number.isNaN(scannedQty) || scannedQty <= 0) {
-  showAlert("Invalid scanned quantity");
-  setBarcode("");
-  return;
-}
+    const scannedQty = Number(scannedQtyRaw);
+    if (Number.isNaN(scannedQty) || scannedQty <= 0) {
+      showAlert("Invalid scanned quantity");
+      setBarcode("");
+      return;
+    }
 
-const matching = Array.isArray(details?.data)
-  ? details.data.filter((i) => i.Material === material)
-  : [];
+    const matching = Array.isArray(details?.data)
+      ? details.data.filter((i) => i.Material === material)
+      : [];
 
     const totalQty = matching.reduce(
       (sum, item) => sum + Number(item.Delivery_Quantity || 0),
@@ -170,35 +171,30 @@ const matching = Array.isArray(details?.data)
     setBarcode("");
   }, [barcode]); // 👈 ONLY barcode triggers this
 
-const showAlert = (title, message = "") => {
-  if (alertShownRef.current) return;
+  const showAlert = (title, message = "") => {
+    if (alertShownRef.current) return;
 
-  alertShownRef.current = true;
+    alertShownRef.current = true;
 
-  setTimeout(() => {
-    Alert.alert(title, message, [
-      {
-        text: "OK",
-        onPress: () => {
-          alertShownRef.current = false;
+    setTimeout(() => {
+      Alert.alert(title, message, [
+        {
+          text: "OK",
+          onPress: () => {
+            alertShownRef.current = false;
+          },
         },
-      },
-    ]);
-  }, 100);
-};
+      ]);
+    }, 100);
+  };
 
-/* ---------------- actions ---------------- */
+  /* ---------------- actions ---------------- */
 
   const onRescan = () => {
     setBarcode("");
     setScannedDataLocal([]);
     setBlockedMaterials([]);
-    dispatch(
-      setScannedData({
-        fileName,
-        data: [],
-      })
-    );
+     dispatch(resetOutBoundState());
   };
 
   const onScanPress = () => {
@@ -207,46 +203,44 @@ const showAlert = (title, message = "") => {
 
   /* ---------------- render ---------------- */
 
+
   const renderRow = ({ item, index }) => {
     const icon = statusIcon(item.status);
+
     return (
       <View
         style={[
           s.tableRow,
-          index === scannedDataLocal.length - 1 && {
-            borderBottomWidth: 0,
-          },
+          index === scannedDataLocal.length - 1 && { borderBottomWidth: 0 },
         ]}
       >
         <View style={[s.cell, s.colProduct]}>
           <Text style={s.cellText}>{item.title}</Text>
         </View>
+
         <View style={[s.cell, s.colCenter, s.colDivider]}>
           <Text style={s.cellText}>{item.qty}</Text>
         </View>
+
         <View style={[s.cell, s.colCenter, s.colDivider]}>
           <Text style={s.cellText}>{item.scanned}</Text>
         </View>
+
         <View style={[s.cell, s.colStatus, s.colDivider]}>
-          <Ionicons
-            name={icon.name}
-            color={icon.color}
-            size={20}
-          />
+          <Ionicons name={icon.name} color={icon.color} size={20} />
         </View>
       </View>
     );
   };
 
   return (
+
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
-        <View style={s.header}>
-          <Text style={s.title}>Product Scan</Text>
-        </View>
+        <Text style={s.title}>Product Scan</Text>
 
         <View style={s.inputRow}>
           <TextInput
@@ -256,33 +250,45 @@ const showAlert = (title, message = "") => {
             onChangeText={setBarcode}
             autoFocus
           />
-            <TouchableOpacity style={s.barcodeBtn}>
-                      <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
-                    </TouchableOpacity>
+          <TouchableOpacity style={s.barcodeBtn}>
+            <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
+          </TouchableOpacity>
         </View>
 
         {scannedDataLocal.length > 0 && (
           <>
-            <TouchableOpacity
-              style={s.rescanBtn}
-              onPress={onRescan}
-            >
-              <Ionicons name="refresh" size={18} />
+            <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
+              <Ionicons name="refresh" size={16} />
               <Text> Re-scan</Text>
             </TouchableOpacity>
 
             <View style={s.tableWrap}>
+              {/* HEADER */}
+              <View style={s.tableHeader}>
+                <View style={[s.cell, s.colProduct]}>
+                  <Text style={s.headerText}>Product</Text>
+                </View>
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Qty</Text>
+                </View>
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Scanned Qty</Text>
+                </View>
+                <View style={[s.cell, s.colStatus, s.colDivider]}>
+                  <Text style={s.headerText}>Status</Text>
+                </View>
+              </View>
+
+              {/* BODY */}
               <FlatList
                 data={scannedDataLocal}
                 keyExtractor={(i) => i.id}
                 renderItem={renderRow}
+                scrollEnabled={false}
               />
             </View>
 
-            <TouchableOpacity
-              style={s.forwardBtn}
-              onPress={onScanPress}
-            >
+            <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
               <Text style={s.forwardText}>Move forward</Text>
             </TouchableOpacity>
           </>
@@ -292,118 +298,107 @@ const showAlert = (title, message = "") => {
   );
 };
 
+/* ---------------- styles ---------------- */
 
-const styles = (screenContext, width, height) => ({
+const styles = (width, height) => ({
   container: { flex: 1, backgroundColor: "#fff" },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 8,
+  title: {
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 12,
   },
-  backButton: { padding: 8 },
-  backText: { fontSize: 20 },
-  title: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "600" },
-
-  logo: { width: 90, height: 90, resizeMode: "contain", alignSelf: "center", marginBottom: 6 },
 
   inputRow: {
     flexDirection: "row",
     paddingHorizontal: 18,
+    marginTop: Math.max(12, height * 0.06),
     alignItems: "center",
-    marginTop: Math.max(12, height * 0.08),
   },
+
   input: {
     flex: 1,
     height: 44,
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: "#e5e7eb",
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#fff",
   },
+
   barcodeBtn: {
     marginLeft: 10,
-    backgroundColor: Colors.name?.VstarRed || "#e31717",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: Colors.name?.VstarRed || "#e11d48",
+    padding: 12,
     borderRadius: 8,
-    justifyContent: "center",
   },
+
   barcodeBtnText: { color: "#fff", fontWeight: "700" },
 
   rescanBtn: {
     marginLeft: 18,
     marginTop: 12,
-    backgroundColor: "#f1c40f",
-    alignSelf: "flex-start",
+    backgroundColor: "#fde047",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
     flexDirection: "row",
+    alignSelf: "flex-start",
   },
-  rescanText: { color: "#2c2c2c", fontWeight: "600" },
 
   tableWrap: {
     marginHorizontal: 18,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: "#ececec",
+    borderColor: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#fff",
   },
 
   tableHeader: {
     flexDirection: "row",
+    backgroundColor: "#f9fafb",
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
-    backgroundColor: "#fafafa",
+    borderColor: "#e5e7eb",
   },
 
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
+    borderColor: "#f3f4f6",
   },
 
   cell: {
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
     justifyContent: "center",
+  },
+
+  colDivider: {
+    borderLeftWidth: 1,
+    borderColor: "#e5e7eb",
   },
 
   colProduct: { flex: 2 },
   colCenter: { flex: 1, alignItems: "center" },
   colStatus: { width: 72, alignItems: "center" },
 
-  // vertical column divider (left border for columns after Product)
-  colDivider: {
-    borderLeftWidth: 1,
-    borderColor: "#ececec",
-  },
-
-  headerText: { fontWeight: "700", color: "#4b5563" },
-  cellText: { color: "#111", fontSize: 15 },
-
-  statusText: { fontSize: 18 },
+  headerText: { fontWeight: "700", color: "#374151" },
+  cellText: { color: "#111827" },
 
   forwardBtn: {
-    backgroundColor: "#155724",
-    alignSelf: "flex-end",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 18,
     marginTop: 20,
+    marginRight: 18,
+    alignSelf: "flex-end",
+    backgroundColor: "#166534",
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 8,
-    flexDirection: "row",
   },
+
   forwardText: { color: "#fff", fontWeight: "700" },
 });
+
 
 export default ProductScan;
 

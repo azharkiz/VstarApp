@@ -39,15 +39,40 @@ export const fetchFileDetails = createAsyncThunk(
   }
 );
 
+export const generatePdf = createAsyncThunk(
+  'outbound/generatePdf',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post('/generatePdf', payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response?.data ?? null;
+    } catch (error) {
+      return rejectWithValue(
+        error?.response?.data ?? { message: error?.message ?? 'Request failed' }
+      );
+    }
+  }
+);
+
 const initialState = {
   items: [],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
   scannedDataByFile: {}, // added to store scanned items
+   packingDataByFile: {},  
   // new fields for file details
   details: null,
   detailsStatus: 'idle',
   detailsError: null,
+  BoxList: [],
+  boxCode: [],
+};
+
+const initialStateScanner = {
+  error: null,
+  scannedDataByFile: {}, // added to store scanned items
+   packingDataByFile: {},
   BoxList: [],
   boxCode: [],
 };
@@ -78,10 +103,19 @@ const outBoundSlice = createSlice({
       const key = normalizeFileName(fileName);
       state.scannedDataByFile[key] = data;
   },
-  setBoxList(state, action) {
+  setPackingData: (state, action) => {
+      const { fileName, data } = action.payload;
+
+      if (!state.packingDataByFile) {
+        state.packingDataByFile = {};
+      }
+
+      state.packingDataByFile[fileName] = data;
+    },
+  setBoxList: (state, action) => {
     state.BoxList = action.payload;
   },
-  setBoxCode(state, action) {
+  setBoxCode: (state, action) => {
     const { boxName, boxCodeNumber } = action.payload;
 
       const index = state.boxCode.findIndex(
@@ -93,7 +127,8 @@ const outBoundSlice = createSlice({
       } else {
         state.boxCode.push({ boxName, boxCodeNumber });
       }
-    }
+    },
+    resetOutBoundState: () => initialStateScanner,
 
   },
   extraReducers: (builder) => {
@@ -123,11 +158,23 @@ const outBoundSlice = createSlice({
       .addCase(fetchFileDetails.rejected, (state, action) => {
         state.detailsStatus = 'failed';
         state.detailsError = action.payload ?? action.error?.message;
+      })
+      .addCase(generatePdf.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(generatePdf.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.items = action.payload ?? [];
+      })
+      .addCase(generatePdf.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload ?? action.error?.message;
       });
   },
 });
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
@@ -139,6 +186,7 @@ export const selectOutBound = (state) => {
     detailsStatus: slice.detailsStatus ?? 'idle',
     detailsError: slice.detailsError ?? null,
     scannedDataByFile: slice.scannedDataByFile ?? {},
+    packingDataByFile: slice.packingDataByFile ?? {},
     BoxList: slice.BoxList ?? [],
     boxCode: slice.boxCode ?? [],
   };

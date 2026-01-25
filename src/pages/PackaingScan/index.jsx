@@ -2,18 +2,22 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   FlatList,
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from 'react-redux';
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
 import { useLinkProps } from "@react-navigation/native";
+import { selectOutBound, setPackingData, generatePdf } from '../../services/redux/slice/outBoundSlice';
+import { normalizeFileName } from "../../services/helper/common";
+import { CommonActions } from "@react-navigation/native";
 
 const initialData = [
   { id: "1", title: "Product 1", qty: 100, scanned: 90 },
@@ -23,184 +27,319 @@ const initialData = [
 ];
 
 const PackingScan = (props) => {
-  const [boxQrcode, setBoxQrcode] = useState("");
-  const [itemQrcode, setItemQrcode] = useState("");
-  const [data, setData] = useState(initialData);
-  const [boxQRtext, setBoxQRtext] = useState("");
+  const dispatch = useDispatch();
+  const { scannedDataByFile, packingDataByFile } = useSelector(selectOutBound);
+
+  const sourceFileName = props.route.params.fileName; // outbound
+  const targetFileName = props.route.params.file;     // packing
+
+  const sourceKey = normalizeFileName(sourceFileName);
+  const targetKey = normalizeFileName(targetFileName);
+
+  const sourceData = scannedDataByFile[sourceKey] || [];
+
+  const [qrcode, setQrcode] = useState("");
+  const [data, setData] = useState(
+    packingDataByFile?.[targetKey] || []
+  );
 
   const screenContext = useScreenContext();
   const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
   const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(screenContext, width, height);
 
-  const handleBoxQRScan = (scannedCode) => {
+  useEffect(() => {
+    setData(packingDataByFile?.[targetKey] || []);
+  }, [targetKey]);
 
-    if (boxQrcode.length == 0) {
-      setBoxQrcode(scannedCode);
-      // props.navigation.navigate("PackingSection", { boxCode: scannedCode });
-    }
-
-
-
-  }
-
+  /* ---------------- QR scan logic ---------------- */
 
   useEffect(() => {
+    if (!qrcode) return;
 
-    return () => {
-      setBoxQRtext("");
+    const [material] = qrcode.split("_");
+    if (!material) {
+      setQrcode("");
+      return;
+    }
+
+    // find from outbound file
+    const matchedItem = sourceData.find(
+      (item) => item.title === material
+    );
+    if (!matchedItem) {
+      setQrcode("");
+      return;
+    }
+
+    setData((prev) => {
+      // check if material already exists in packing table
+      const existingIndex = prev.findIndex(
+        (item) => item.title === material
+      );
+
+      let updated;
+
+      if (existingIndex > -1) {
+        // update existing row (increase packed qty)
+        updated = prev.map((item, idx) =>
+          idx === existingIndex
+            ? {
+              ...item,
+            }
+            : item
+        );
+      } else {
+        // ➕ add new row
+        updated = [
+          ...prev,
+          {
+            ...matchedItem
+          },
+        ];
+      }
+
+      // sync to redux (SINGLE source of truth)
+      setTimeout(() => {
+      dispatch(
+        setPackingData({
+          fileName: targetKey,
+          data: updated,
+        })
+      );
+       }, 0);
+
+      return updated;
+    });
+
+    setQrcode("");
+  }, [qrcode]);
+
+  /* ---------------- rescan ---------------- */
+
+  const onRescan = () => {
+    setQrcode("");
+    setData([]);
+    dispatch(
+      setPackingData({
+        fileName: targetKey,
+        data: [],
+      })
+    );
+  };
+
+  const onScanPress = () => {
+    const payload = {
+      company: "V-STAR CREATIONS (P) LTD",
+      dealer: "AVENUE MARKETING, KANNUR",
+      docNo: "19466",
+      page: "1 of 1",
+      items: [
+        {
+          box: targetFileName,
+          fileName: sourceFileName,
+          boxItems: data
+        }
+      ]
     };
-  }, [boxQRtext]);
+    dispatch(generatePdf(payload)).unwrap().then(() => {
+     
+      setTimeout(() => {
+         setQrcode("");
+      setData([]);
+      dispatch(
+        setPackingData({
+          fileName: targetKey,
+          data: [],
+        })
+      );
+      
+        props.navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: "CreatePacking" }],
+          })
+        );
+      }, 0);
+    });
+  };
+  /* ---------------- render row ---------------- */
+
+  const renderRow = ({ item, index }) => (
+    <View
+      style={[
+        s.tableRow,
+        index === data.length - 1 && { borderBottomWidth: 0 },
+      ]}
+    >
+      <View style={[s.cell, s.colProduct]}>
+        <Text style={s.cellText}>{item.title}</Text>
+      </View>
+
+      <View style={[s.cell, s.colCenter, s.colDivider]}>
+        <Text style={s.cellText}>{item.qty}</Text>
+      </View>
+
+      <View style={[s.cell, s.colCenter, s.colDivider]}>
+        <Text style={s.cellText}>{item.scanned}</Text>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={s.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <View style={s.header}>
-          {/* <TouchableOpacity style={s.backButton}>
-            <Ionicons name="arrow-back" color={Colors.name.black} size={25} />
-          </TouchableOpacity> */}
-          <Text style={s.title}>Packing Scan</Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <Text style={s.title}>Packing Scan</Text>
 
         <View style={s.inputRow}>
-
           <TextInput
-            placeholder="Box Barcode"
-            value={boxQrcode}
-            onChangeText={(item) => {
-              if (item !== 0) {
-                handleBoxQRScan(item)
-              }
-            }}
+            placeholder="Scan Material QR"
+            value={qrcode}
             style={s.input}
-            placeholderTextColor="#999"
+            onChangeText={setQrcode}
+            autoFocus
           />
           <TouchableOpacity style={s.barcodeBtn}>
             <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
           </TouchableOpacity>
         </View>
 
+        {data.length > 0 && (
+          <>
+            <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
+              <Ionicons name="refresh" size={16} />
+              <Text> Re-scan</Text>
+            </TouchableOpacity>
 
+            <View style={s.tableWrap}>
+              <View style={s.tableHeader}>
+                <View style={[s.cell, s.colProduct]}>
+                  <Text style={s.headerText}>Product</Text>
+                </View>
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Qty</Text>
+                </View>
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Packed Qty</Text>
+                </View>
+              </View>
+
+              <FlatList
+                data={data}
+                keyExtractor={(i) => i.id || i.title}
+                renderItem={renderRow}
+                scrollEnabled={false}
+              />
+            </View>
+            <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
+              <Text style={s.forwardText}>Online Submit</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
-const styles = (screenContext, width, height) => ({
+const styles = (width, height) => ({
   container: { flex: 1, backgroundColor: "#fff" },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 8,
+  title: {
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 12,
   },
-  backButton: { padding: 8 },
-  backText: { fontSize: 20 },
-  title: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "600" },
-
-  logo: { width: 90, height: 90, resizeMode: "contain", alignSelf: "center", marginBottom: 6 },
 
   inputRow: {
     flexDirection: "row",
     paddingHorizontal: 18,
+    marginTop: Math.max(12, height * 0.06),
     alignItems: "center",
-    marginTop: Math.max(12, height * 0.08),
   },
-  inputRowSec: {
-    flexDirection: "row",
-    paddingHorizontal: 18,
-    alignItems: "center",
-    marginTop: Math.max(12, height * 0.01),
-  },
+
   input: {
     flex: 1,
     height: 44,
     borderWidth: 1,
-    borderColor: "#e6e6e6",
+    borderColor: "#e5e7eb",
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#fff",
   },
+
   barcodeBtn: {
     marginLeft: 10,
-    backgroundColor: Colors.name?.VstarRed || "#e31717",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: Colors.name?.VstarRed || "#e11d48",
+    padding: 12,
     borderRadius: 8,
-    justifyContent: "center",
   },
+
   barcodeBtnText: { color: "#fff", fontWeight: "700" },
 
   rescanBtn: {
     marginLeft: 18,
     marginTop: 12,
-    backgroundColor: "#f1c40f",
-    alignSelf: "flex-start",
+    backgroundColor: "#fde047",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
     flexDirection: "row",
+    alignSelf: "flex-start",
   },
-  rescanText: { color: "#2c2c2c", fontWeight: "600" },
 
   tableWrap: {
     marginHorizontal: 18,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: "#ececec",
+    borderColor: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#fff",
   },
 
   tableHeader: {
     flexDirection: "row",
+    backgroundColor: "#f9fafb",
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
-    backgroundColor: "#fafafa",
+    borderColor: "#e5e7eb",
   },
 
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
+    borderColor: "#f3f4f6",
   },
 
   cell: {
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
     justifyContent: "center",
+  },
+
+  colDivider: {
+    borderLeftWidth: 1,
+    borderColor: "#e5e7eb",
   },
 
   colProduct: { flex: 2 },
   colCenter: { flex: 1, alignItems: "center" },
   colStatus: { width: 72, alignItems: "center" },
 
-  // vertical column divider (left border on middle and right cols)
-  colDivider: {
-    borderLeftWidth: 1,
-    borderColor: "#ececec",
-  },
-
-  headerText: { fontWeight: "700", color: "#4b5563" },
-  cellText: { color: "#111", fontSize: 15 },
-
-  statusText: { fontSize: 18 },
+  headerText: { fontWeight: "700", color: "#374151" },
+  cellText: { color: "#111827" },
 
   forwardBtn: {
-    backgroundColor: "#155724",
-    alignSelf: "flex-end",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 18,
     marginTop: 20,
+    marginRight: 18,
+    alignSelf: "flex-end",
+    backgroundColor: "#166534",
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 8,
-    flexDirection: "row",
   },
+
   forwardText: { color: "#fff", fontWeight: "700" },
 });
 

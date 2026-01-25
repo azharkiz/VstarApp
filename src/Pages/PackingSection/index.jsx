@@ -19,7 +19,7 @@ import { setBoxCode, selectOutBound } from '../../services/redux/slice/outBoundS
 
 const PackingSection = (props) => {
     const dispatch = useDispatch();
-    const { boxCode } = useSelector(selectOutBound);
+    const { boxCode, scannedDataByFile } = useSelector(selectOutBound);
     const [boxCodeScanned, setBoxCodeScanned] = useState("");
     const screenContext = useScreenContext();
     const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
@@ -63,7 +63,7 @@ const PackingSection = (props) => {
     }
 
     const onScanPress = (file) => {
-        props.navigation.navigate('PackingScan', { file: boxCodeScanned });
+        props.navigation.navigate('PackingScan', { file: boxCodeScanned, fileName: Object.keys(scannedDataByFile)[0] });
     };
 
     return (
