@@ -91,6 +91,9 @@ const PackingSection = (props) => {
                         <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
                     </TouchableOpacity>
                 </View>
+                <View style={{ flex: 0.2, justifyContent: "flex-start", alignItems: "center" }}>
+                    <Text style={s.instructionsText}>{'Box QR code only need to be scanned here'}</Text>
+                </View>
                 {boxCodeScanned.length > 0 && (
                     <>
                         <View style={{ flex: 0.2, justifyContent: "flex-start", alignItems: "center" }}>

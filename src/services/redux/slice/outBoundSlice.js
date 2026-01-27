@@ -38,7 +38,21 @@ export const fetchFileDetails = createAsyncThunk(
     }
   }
 );
-
+export const saveProductScans = createAsyncThunk(
+  'outbound/saveProductScans',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post('/SaveProductScan', payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response?.data ?? null;
+    } catch (error) {
+      return rejectWithValue(
+        error?.response?.data ?? { message: error?.message ?? 'Request failed' }
+      );
+    }
+  }
+);
 export const generatePdf = createAsyncThunk(
   'outbound/generatePdf',
   async (payload, { rejectWithValue }) => {
@@ -170,9 +184,21 @@ const outBoundSlice = createSlice({
       .addCase(generatePdf.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload ?? action.error?.message;
+      })
+      .addCase(saveProductScans.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(saveProductScans.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.items = action.payload ?? [];
+      })
+      .addCase(saveProductScans.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload ?? action.error?.message;
       });
   },
-});
+})
 
 export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState } = outBoundSlice.actions;
 

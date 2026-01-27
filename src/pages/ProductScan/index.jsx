@@ -20,6 +20,7 @@ import {
   selectOutBound,
   setScannedData,
   resetOutBoundState,
+  saveProductScans
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
@@ -49,6 +50,7 @@ const ProductScan = (props) => {
   const [barcode, setBarcode] = useState("");
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
   const [blockedMaterials, setBlockedMaterials] = useState([]);
+  const [showMoveForward, setShowMoveForward] = useState(false);
 
   const width =
     screenContext[
@@ -110,6 +112,7 @@ const ProductScan = (props) => {
     const matching = Array.isArray(details?.data)
       ? details.data.filter((i) => i.Material === material)
       : [];
+
 
     const totalQty = matching.reduce(
       (sum, item) => sum + Number(item.Delivery_Quantity || 0),
@@ -194,15 +197,50 @@ const ProductScan = (props) => {
     setBarcode("");
     setScannedDataLocal([]);
     setBlockedMaterials([]);
-     dispatch(resetOutBoundState());
+    dispatch(resetOutBoundState());
   };
 
+
+  /* ---------------- render ---------------- */
   const onScanPress = () => {
     props.navigation.navigate("CreatePacking");
   };
+const chunkArray = (array, size) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+};
+  const onlineSubmitApi = async () => {
+    const scannedMap = scannedDataLocal.reduce((acc, item) => {
+      acc[item.title] = item.scanned;
+      return acc;
+    }, {});
+    const updatedData = details.data
+      .filter(item => scannedMap[item.Material] != null)
+      .map(item => ({
+        ...item,
+        Scanned_Qty: scannedMap[item.Material],
+      }));
+    const BATCH_SIZE = 50;
+  const chunks = chunkArray(updatedData, BATCH_SIZE);
+  console.log('ProductScan - key:', key);
 
-  /* ---------------- render ---------------- */
+  for (let i = 0; i < chunks.length; i++) {
+    const payload = {
+        filename: key,
+        status: "true",
+        data: chunks[i],
+    };
 
+    await dispatch(saveProductScans(payload)).unwrap().then(() => {
+      // waits for API response
+      setShowMoveForward(true);
+    });
+  }
+
+  };
 
   const renderRow = ({ item, index }) => {
     const icon = statusIcon(item.status);
@@ -237,7 +275,7 @@ const ProductScan = (props) => {
 
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <Text style={s.title}>Product Scan</Text>
@@ -287,10 +325,14 @@ const ProductScan = (props) => {
                 scrollEnabled={false}
               />
             </View>
-
-            <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
-              <Text style={s.forwardText}>Move forward</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", justifyContent: "center" }}>
+              <TouchableOpacity style={[s.forwardBtn, { backgroundColor: "#166534",}]} onPress={onlineSubmitApi}>
+                <Text style={s.forwardText}>Online submit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.forwardBtn, { backgroundColor: showMoveForward ? "#166534" : "#e5e7eb",}]} onPress={showMoveForward ? onScanPress : undefined}>
+                <Text style={s.forwardText}>Move forward</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </KeyboardAvoidingView>
@@ -390,7 +432,6 @@ const styles = (width, height) => ({
     marginTop: 20,
     marginRight: 18,
     alignSelf: "flex-end",
-    backgroundColor: "#166534",
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 8,

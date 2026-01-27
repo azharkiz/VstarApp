@@ -72,7 +72,7 @@ const CreatePacking = (props) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => props.navigation.pop()}>
           <Ionicons name="arrow-back" size={22} />
         </TouchableOpacity>
 

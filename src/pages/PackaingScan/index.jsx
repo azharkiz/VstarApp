@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -10,25 +10,34 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
-import { useLinkProps } from "@react-navigation/native";
-import { selectOutBound, setPackingData, generatePdf } from '../../services/redux/slice/outBoundSlice';
+import {
+  selectOutBound,
+  setPackingData,
+} from "../../services/redux/slice/outBoundSlice";
 import { normalizeFileName } from "../../services/helper/common";
-import { CommonActions } from "@react-navigation/native";
 
-const initialData = [
-  { id: "1", title: "Product 1", qty: 100, scanned: 90 },
-  { id: "2", title: "Product 2", qty: 50, scanned: 50 },
-  { id: "3", title: "Product 3", qty: 150, scanned: 0 },
-  { id: "4", title: "Content 4", qty: 20, scanned: 20 },
-];
+/* ---------------- helpers ---------------- */
+
+const statusIcon = (status) => {
+  if (status === "done") return { name: "checkmark-circle", color: "#155724" };
+  if (status === "partial")
+    return { name: "checkmark-circle", color: "#f39c12" };
+  return { name: "ellipse-outline", color: "#bdc3c7" };
+};
+
+/* ---------------- component ---------------- */
 
 const PackingScan = (props) => {
   const dispatch = useDispatch();
-  const { scannedDataByFile, packingDataByFile } = useSelector(selectOutBound);
+  const screenContext = useScreenContext();
+  const alertShownRef = useRef(false);
+
+  const { scannedDataByFile, packingDataByFile } =
+    useSelector(selectOutBound);
 
   const sourceFileName = props.route.params.fileName; // outbound
   const targetFileName = props.route.params.file;     // packing
@@ -37,89 +46,147 @@ const PackingScan = (props) => {
   const targetKey = normalizeFileName(targetFileName);
 
   const sourceData = scannedDataByFile[sourceKey] || [];
+  const reduxPackingData = packingDataByFile[targetKey] || [];
 
   const [qrcode, setQrcode] = useState("");
-  const [data, setData] = useState(
-    packingDataByFile?.[targetKey] || []
-  );
+  const [packingLocal, setPackingLocal] = useState([]);
+  const [blockedMaterials, setBlockedMaterials] = useState([]);
 
-  const screenContext = useScreenContext();
-  const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
-  const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
-  const s = styles(screenContext, width, height);
+  const width =
+    screenContext[
+      screenContext.isPortrait ? "windowWidth" : "windowHeight"
+    ];
+  const height =
+    screenContext[
+      screenContext.isPortrait ? "windowHeight" : "windowWidth"
+    ];
+  const s = styles(width, height);
+
+  /* ---------------- redux → local sync (SAFE) ---------------- */
 
   useEffect(() => {
-    setData(packingDataByFile?.[targetKey] || []);
-  }, [targetKey]);
+    setPackingLocal(reduxPackingData);
+  }, [targetKey]); // 👈 important
 
-  /* ---------------- QR scan logic ---------------- */
+  /* ---------------- QR scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
 
   useEffect(() => {
-    if (!qrcode) return;
+    if (!qrcode || !targetKey) return;
 
-    const [material] = qrcode.split("_");
-    if (!material) {
+    const parts = qrcode.split("_");
+    const material = parts[0]?.trim();
+    const scannedQtyRaw = parts[1]?.trim();
+
+    if (!material || !scannedQtyRaw) {
+      showAlert("Invalid QR format");
       setQrcode("");
       return;
     }
 
-    // find from outbound file
-    const matchedItem = sourceData.find(
-      (item) => item.title === material
+    if (
+      blockedMaterials.includes(material) ||
+      packingLocal.some(
+        (i) => i.title === material && i.status === "done"
+      )
+    ) {
+      showAlert("Item already completed");
+      setQrcode("");
+      return;
+    }
+
+    const scannedQty = Number(scannedQtyRaw);
+    if (Number.isNaN(scannedQty) || scannedQty <= 0) {
+      showAlert("Invalid quantity");
+      setQrcode("");
+      return;
+    }
+
+    const matched = sourceData.find(
+      (i) => i.title === material
     );
-    if (!matchedItem) {
+
+    if (!matched) {
+      showAlert("Material not found");
       setQrcode("");
       return;
     }
 
-    setData((prev) => {
-      // check if material already exists in packing table
-      const existingIndex = prev.findIndex(
-        (item) => item.title === material
+    let updated;
+    const index = packingLocal.findIndex(
+      (i) => i.title === material
+    );
+
+    if (index > -1) {
+      const existing = packingLocal[index];
+      const newPacked = (existing.packed || 0) + scannedQty;
+
+      const status =
+        newPacked >= existing.qty ? "done" : "partial";
+
+      updated = packingLocal.map((item, i) =>
+        i === index
+          ? { ...item, packed: newPacked, status }
+          : item
       );
 
-      let updated;
-
-      if (existingIndex > -1) {
-        // update existing row (increase packed qty)
-        updated = prev.map((item, idx) =>
-          idx === existingIndex
-            ? {
-              ...item,
-            }
-            : item
-        );
-      } else {
-        // ➕ add new row
-        updated = [
-          ...prev,
-          {
-            ...matchedItem
-          },
-        ];
+      if (status === "done") {
+        setBlockedMaterials((p) => [...new Set([...p, material])]);
       }
+    } else {
+      const status =
+        scannedQty >= matched.qty ? "done" : "partial";
 
-      // sync to redux (SINGLE source of truth)
-      setTimeout(() => {
-      dispatch(
-        setPackingData({
-          fileName: targetKey,
-          data: updated,
-        })
-      );
-       }, 0);
+      updated = [
+        ...packingLocal,
+        {
+          ...matched,
+          packed: scannedQty,
+          status,
+        },
+      ];
 
-      return updated;
-    });
+      if (status === "done") {
+        setBlockedMaterials((p) => [...new Set([...p, material])]);
+      }
+    }
+
+    /* ✅ SINGLE UPDATE + SINGLE DISPATCH */
+    setPackingLocal(updated);
+    dispatch(
+      setPackingData({
+        fileName: targetKey,
+        data: updated,
+      })
+    );
 
     setQrcode("");
   }, [qrcode]);
 
-  /* ---------------- rescan ---------------- */
+  /* ---------------- alert ---------------- */
+
+  const showAlert = (title, message = "") => {
+    if (alertShownRef.current) return;
+
+    alertShownRef.current = true;
+
+    setTimeout(() => {
+      Alert.alert(title, message, [
+        {
+          text: "OK",
+          onPress: () => {
+            alertShownRef.current = false;
+          },
+        },
+      ]);
+    }, 100);
+  };
+
+  /* ---------------- actions ---------------- */
 
   const onRescan = () => {
     setQrcode("");
-    setData([]);
+    setPackingLocal([]);
+    setBlockedMaterials([]);
     dispatch(
       setPackingData({
         fileName: targetKey,
@@ -163,28 +230,37 @@ const PackingScan = (props) => {
       }, 0);
     });
   };
+
   /* ---------------- render row ---------------- */
 
-  const renderRow = ({ item, index }) => (
-    <View
-      style={[
-        s.tableRow,
-        index === data.length - 1 && { borderBottomWidth: 0 },
-      ]}
-    >
-      <View style={[s.cell, s.colProduct]}>
-        <Text style={s.cellText}>{item.title}</Text>
-      </View>
+  const renderRow = ({ item, index }) => {
+    const icon = statusIcon(item.status);
 
-      <View style={[s.cell, s.colCenter, s.colDivider]}>
-        <Text style={s.cellText}>{item.qty}</Text>
-      </View>
+    return (
+      <View
+        style={[
+          s.tableRow,
+          index === packingLocal.length - 1 && { borderBottomWidth: 0 },
+        ]}
+      >
+        <View style={[s.cell, s.colProduct]}>
+          <Text style={s.cellText}>{item.title}</Text>
+        </View>
 
-      <View style={[s.cell, s.colCenter, s.colDivider]}>
-        <Text style={s.cellText}>{item.scanned}</Text>
+        <View style={[s.cell, s.colCenter, s.colDivider]}>
+          <Text style={s.cellText}>{item.qty}</Text>
+        </View>
+
+        <View style={[s.cell, s.colCenter, s.colDivider]}>
+          <Text style={s.cellText}>{item.packed}</Text>
+        </View>
+
+        <View style={[s.cell, s.colStatus, s.colDivider]}>
+          <Ionicons name={icon.name} color={icon.color} size={20} />
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={s.container}>
@@ -207,7 +283,7 @@ const PackingScan = (props) => {
           </TouchableOpacity>
         </View>
 
-        {data.length > 0 && (
+        {packingLocal.length > 0 && (
           <>
             <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
               <Ionicons name="refresh" size={16} />
@@ -223,18 +299,21 @@ const PackingScan = (props) => {
                   <Text style={s.headerText}>Qty</Text>
                 </View>
                 <View style={[s.cell, s.colCenter, s.colDivider]}>
-                  <Text style={s.headerText}>Packed Qty</Text>
+                  <Text style={s.headerText}>Packed</Text>
+                </View>
+                <View style={[s.cell, s.colStatus, s.colDivider]}>
+                  <Text style={s.headerText}>Status</Text>
                 </View>
               </View>
 
               <FlatList
-                data={data}
+                data={packingLocal}
                 keyExtractor={(i) => i.id || i.title}
                 renderItem={renderRow}
                 scrollEnabled={false}
               />
             </View>
-            <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
+              <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
               <Text style={s.forwardText}>Online Submit</Text>
             </TouchableOpacity>
           </>
@@ -243,6 +322,8 @@ const PackingScan = (props) => {
     </SafeAreaView>
   );
 };
+
+
 
 const styles = (width, height) => ({
   container: { flex: 1, backgroundColor: "#fff" },
