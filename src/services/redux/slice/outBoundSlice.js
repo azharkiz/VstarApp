@@ -16,6 +16,40 @@ export const fetchOutBoundFiles = createAsyncThunk(
   }
 );
 
+export const fetchOutBoundDeliveryCodes = createAsyncThunk(
+  'outbound/fetchOutBoundDeliveryCodes',
+  async (payload, { rejectWithValue }) => {
+    try {
+      // normalize payload: accept filename string or object { filename, ... }
+      const body = typeof payload === 'string' ? { filename: payload } : (payload || {});
+      // axios/apiClient will serialize object to JSON automatically
+      const response = await apiClient.post('/fetchDeliveryCode', body);
+      // return the API data (fallback to null or empty array as needed)
+      return response.data;
+    } catch (error) {
+      console.error("fetchOutBoundDeliveryCodes - error:", error);
+      return rejectWithValue(
+        error?.response?.data ?? { message: error?.message ?? 'Request failed' }
+      );
+    }
+  }
+);
+
+export const fetchFullRowByMatch = createAsyncThunk(
+  'outbound/fetchFullRowByMatch',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post('/fetchFullRowByMatch', payload);
+      return response.data;
+    } catch (error) {
+      console.error("fetchFullRowByMatch - error:", error);
+      return rejectWithValue(
+        error?.response?.data ?? { message: error?.message ?? 'Request failed' }
+      );
+    }
+  }
+);
+
 // NEW: thunk to fetch details for a specific file (called from Scan button)
 export const fetchFileDetails = createAsyncThunk(
   'outbound/fetchFileDetails',
@@ -74,18 +108,22 @@ const initialState = {
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
   scannedDataByFile: {}, // added to store scanned items
-   packingDataByFile: {},  
+  scannedDataByFileNew: {}, // added to store scanned items
+  packingDataByFile: {},
   // new fields for file details
   details: null,
   detailsStatus: 'idle',
   detailsError: null,
   BoxList: [],
   boxCode: [],
+  deliveryCodes: [],
+  itemsScanning: [],
 };
 
 const initialStateScanner = {
   error: null,
   scannedDataByFile: {}, // added to store scanned items
+  scannedDataByFileNew: {}, // added to store scanned items
    packingDataByFile: {},
   BoxList: [],
   boxCode: [],
@@ -106,7 +144,10 @@ const outBoundSlice = createSlice({
       state.detailsStatus = 'idle';
       state.detailsError = null;
     },
-   setScannedData: (state, action) => {
+    setDeliveryCodes: (state, action) => {
+      state.items = action.payload ?? [];
+    },
+    setScannedData: (state, action) => {
       const { fileName, data } = action.payload;
 
       // 🔐 safety guard (optional but recommended)
@@ -116,6 +157,15 @@ const outBoundSlice = createSlice({
 
       const key = normalizeFileName(fileName);
       state.scannedDataByFile[key] = data;
+  },
+    setScannedDataNew: (state, action) => {
+      const { fileName, data } = action.payload;
+
+      // 🔐 safety guard (optional but recommended)
+      if (!state.scannedDataByFileNew) {
+        state.scannedDataByFileNew = {};
+      }
+      state.scannedDataByFileNew[fileName] = data;
   },
   setPackingData: (state, action) => {
       const { fileName, data } = action.payload;
@@ -159,7 +209,30 @@ const outBoundSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload ?? action.error?.message;
       })
-
+      .addCase(fetchOutBoundDeliveryCodes.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchOutBoundDeliveryCodes.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.deliveryCodes = action.payload ?? [];
+      })
+      .addCase(fetchOutBoundDeliveryCodes.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload ?? action.error?.message;
+      })
+      .addCase(fetchFullRowByMatch.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchFullRowByMatch.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.itemsScanning = action.payload ?? null;
+      })
+      .addCase(fetchFullRowByMatch.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload ?? action.error?.message;
+      })
       // handlers for file details thunk
       .addCase(fetchFileDetails.pending, (state) => {
         state.detailsStatus = 'loading';
@@ -200,7 +273,7 @@ const outBoundSlice = createSlice({
   },
 })
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
@@ -215,6 +288,9 @@ export const selectOutBound = (state) => {
     packingDataByFile: slice.packingDataByFile ?? {},
     BoxList: slice.BoxList ?? [],
     boxCode: slice.boxCode ?? [],
+    deliveryCodes: slice.deliveryCodes ?? [],
+    itemsScanning: slice.itemsScanning ?? [],
+    scannedDataByFileNew: slice.scannedDataByFileNew ?? {},
   };
 };
 

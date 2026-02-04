@@ -20,7 +20,8 @@ import {
   selectOutBound,
   setScannedData,
   resetOutBoundState,
-  saveProductScans
+  saveProductScans,
+  setScannedDataNew
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
@@ -40,12 +41,12 @@ const ProductScan = (props) => {
   const alertShownRef = useRef(false);
   const fileName = props.route.params?.fileName;
 
-  const { details, detailsStatus, scannedDataByFile } =
+  const { details, detailsStatus, scannedDataByFile, scannedDataByFileNew } =
     useSelector(selectOutBound);
-  console.log('ProductScan - fileName:', scannedDataByFile);
+  console.log('ProductScan - fileName:', scannedDataByFileNew);
 
   const key = normalizeFileName(fileName);
-  const reduxScannedData = scannedDataByFile[key] || [];
+  const reduxScannedData = scannedDataByFileNew[key] || [];
 
   const [barcode, setBarcode] = useState("");
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
@@ -165,7 +166,11 @@ const ProductScan = (props) => {
     /* ✅ SINGLE UPDATE + SINGLE DISPATCH */
     setScannedDataLocal(updated);
     dispatch(
-      setScannedData({
+      // setScannedData({
+      //   fileName,
+      //   data: updated,
+      // })
+      setScannedDataNew({
         fileName,
         data: updated,
       })

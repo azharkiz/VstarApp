@@ -15,6 +15,7 @@ import ProductScan from "../../Pages/ProductScan";
 import PackingScan from "../../Pages/PackaingScan";
 import CreatePacking from "../../Pages/CreatePacking";
 import PackingSection from "../../Pages/PackingSection";
+import DeliveryCodes from "../../Pages/DeliveryCodes";
 
 import { Colors } from "../../thems/Colors";
 
@@ -107,6 +108,14 @@ const AdminTab = () => {
          screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: "#000000" },
+        }}
+      />
+      <Stack.Screen
+        screenOptions={{ headerShown: false }}
+        name="DeliveryCodes"
+        component={DeliveryCodes}
+        options={{
+          headerShown: false,
         }}
       />
       <Stack.Screen

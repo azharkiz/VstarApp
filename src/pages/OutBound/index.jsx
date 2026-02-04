@@ -29,9 +29,9 @@ const OutBound = (props) => {
   useEffect(() => {
     load();
   }, [load]);
-console.log('Outbound items:', items.files);
+
 const onScanPress = (fileName) => {
-  props.navigation.navigate('ProductScan', { fileName: fileName });
+  props.navigation.navigate('DeliveryCodes', { fileName: fileName });
 };
   const renderItem = ({ item, index }) => (
     <View style={[screenStyles.row, index === data.length - 1 && { borderBottomWidth: 0 }]}>
