@@ -16,6 +16,7 @@ import PackingScan from "../../Pages/PackaingScan";
 import CreatePacking from "../../Pages/CreatePacking";
 import PackingSection from "../../Pages/PackingSection";
 import DeliveryCodes from "../../Pages/DeliveryCodes";
+import Login from "../../Pages/Login";
 
 import { Colors } from "../../thems/Colors";
 
@@ -150,7 +151,15 @@ const AdminTab = () => {
           headerShown: false,
         }}
       />
-      
+      <Stack.Screen
+        screenOptions={{ headerShown: false }}
+        name="Login"
+        component={Login}
+        options={{
+          headerShown: false,
+        }}
+      />
+
     </Stack.Navigator>
   );
 };

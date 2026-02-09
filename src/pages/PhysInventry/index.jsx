@@ -2,18 +2,48 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, TextInput } from "react-native";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { logout } from "../../services/redux/slice/authSlice";
+import { useDispatch } from "react-redux";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 
 const PhysInventry = () => {
     const screenContext = useScreenContext();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
     const screenStyles = styles(
         screenContext,
         screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"],
         screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"]
     );
+    const logoutFun = () => {
+        dispatch(logout());
+       const resetAction = CommonActions.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+        });
+
+        const parent = navigation.getParent();
+        if (parent) {
+            parent.dispatch(resetAction);
+        } else {
+            navigation.dispatch(resetAction);
+        }
+    };
     return (
         <View style={screenStyles.container}>
-            <Image source={require('../../assets/vstar.png')} style={screenStyles.logo} />
-            <Text>Physical Inventory</Text>
+            <View style={screenStyles.header}>
+                <TouchableOpacity 
+                onPress={logoutFun}
+                style={screenStyles.logoutButton}>
+                    <MaterialIcons name="logout" size={20} color={Colors.name.white} />
+                    <Text style={screenStyles.headerText}>Logout</Text>
+                </TouchableOpacity>
+            </View>
+            <View style={screenStyles.content}>
+                <Image source={require('../../assets/vstar.png')} style={screenStyles.logo} />
+                <Text>Settings screen</Text>
+            </View>
         </View>
     );
 };
@@ -21,9 +51,30 @@ const PhysInventry = () => {
 const styles = (screenContext, width, height) => ({
     container: {
         flex: 1,
+    },
+    header: {
+        flex: 0.1,
+        flexDirection: "row",
+        justifyContent: "flex-end",
+        alignItems: "flex-end",
+        marginRight: width * 0.05,
+    },
+    logoutButton: {
+        padding: 10,
+        backgroundColor: Colors.name.VstarRed,
+        borderRadius: 5,
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    headerText: {
+        color: Colors.name.white,
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    content: {
+        flex: 0.9,
         justifyContent: "center",
         alignItems: "center",
-        // backgroundColor: Colors.name.darkBlue,
     },
     logo: {
         width: 150,

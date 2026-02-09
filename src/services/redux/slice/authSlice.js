@@ -68,6 +68,7 @@ const authSlice = createSlice({
       state.employee = null;
       // clear persisted auth
       AsyncStorage.removeItem('auth').catch(() => {});
+      AsyncStorage.removeItem('isLoggedIn').catch(() => {});
       delete apiClient.defaults.headers.common.Authorization;
     },
   },
