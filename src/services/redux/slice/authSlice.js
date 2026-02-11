@@ -9,9 +9,7 @@ export const login = createAsyncThunk(
   async ({ employee }, { rejectWithValue }) => {
     try {
       // send body as object (your API expects POST /Login)
-      console.log('Logging in with employee code:', apiClient.getUri());
       const response = await apiClient.post('/Login', { employee });
-      console.log('Login response:', response);
       const data = response?.data || {};
 
       const token = data.token || null;
@@ -67,9 +65,6 @@ const authSlice = createSlice({
       state.refreshToken = null;
       state.employee = null;
       // clear persisted auth
-      AsyncStorage.removeItem('auth').catch(() => {});
-      AsyncStorage.removeItem('isLoggedIn').catch(() => {});
-      delete apiClient.defaults.headers.common.Authorization;
     },
   },
   extraReducers: (builder) => {
@@ -97,6 +92,33 @@ const authSlice = createSlice({
       });
   },
 });
+
+export const performLogout = () => {
+  return async (dispatch) => {
+    try {
+      // remove persisted auth + UI flag + any other keys you persist
+      await AsyncStorage.removeItem("auth");
+      await AsyncStorage.removeItem("isLoggedIn");
+      // remove any other persisted keys you use, e.g. scanned data
+      await AsyncStorage.removeItem("scannedData");
+      await AsyncStorage.removeItem("scannedDataByFile");
+      // clear axios/default api header if present (safe check)
+      try {
+        if (typeof apiClient !== "undefined" && apiClient?.defaults?.headers) {
+          delete apiClient.defaults.headers.common.Authorization;
+        }
+      } catch (e) {
+        // ignore if apiClient not available here
+      }
+    } catch (err) {
+      // optionally log the error
+      console.warn("performLogout cleanup failed", err);
+    } finally {
+      // update redux state
+      dispatch(logout());
+    }
+  };
+};
 
 export const { logout } = authSlice.actions;
 

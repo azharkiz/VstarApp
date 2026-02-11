@@ -4,11 +4,15 @@ import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { logout } from "../../services/redux/slice/authSlice";
+import { useAuthCheck } from "../../services/Context/AuthContext";
 import { useDispatch } from "react-redux";
 import { useNavigation, CommonActions } from "@react-navigation/native";
+import { performLogout } from "../../services/redux/slice/authSlice";
+import { resetOutBoundState } from "../../services/redux/slice/outBoundSlice";
 
 const PhysInventry = () => {
     const screenContext = useScreenContext();
+    const { setIsLoggedIn } = useAuthCheck();
     const dispatch = useDispatch();
     const navigation = useNavigation();
     const screenStyles = styles(
@@ -16,19 +20,14 @@ const PhysInventry = () => {
         screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"],
         screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"]
     );
-    const logoutFun = () => {
-        dispatch(logout());
-       const resetAction = CommonActions.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-        });
-
-        const parent = navigation.getParent();
-        if (parent) {
-            parent.dispatch(resetAction);
-        } else {
-            navigation.dispatch(resetAction);
-        }
+    const logoutFun = async () => {
+        setIsLoggedIn("login");
+           // perform async cleanup and redux logout
+        await dispatch(performLogout());
+        // clear any other slice state if needed
+        dispatch(resetOutBoundState());
+        // clear local auth context flag
+        setIsLoggedIn(false);
     };
     return (
         <View style={screenStyles.container}>

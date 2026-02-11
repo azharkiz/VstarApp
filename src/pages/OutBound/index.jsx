@@ -6,7 +6,7 @@ import { useLinkProps } from "@react-navigation/native";
 import { Colors } from "../../thems/Colors";
 import { useDispatch, useSelector } from 'react-redux';
 import Feather from 'react-native-vector-icons/Feather';
-import { fetchOutBoundFiles, selectOutBound, fetchFileDetails } from '../../services/redux/slice/outBoundSlice';
+import { fetchOutBoundFiles, selectOutBound, fetchFileDetails, resetOutBoundState } from '../../services/redux/slice/outBoundSlice';
 
 const data = [
   { id: "1", title: "File Name 1", buttonLabel: "Scan" },
@@ -25,6 +25,7 @@ const OutBound = (props) => {
 
   const load = useCallback(() => {
     dispatch(fetchOutBoundFiles());
+    // dispatch(resetOutBoundState());
   }, [dispatch]);
 
   useEffect(() => {

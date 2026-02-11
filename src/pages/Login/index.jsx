@@ -24,7 +24,6 @@ const Login = () => {
         try {
             // dispatch thunk and unwrap to get normalized response
             const res = await dispatch(login({ employee })).unwrap();
-            console.log("Login response:", res);
 
             // robust check for successful login: prefer token from top-level or raw
             const hasToken =

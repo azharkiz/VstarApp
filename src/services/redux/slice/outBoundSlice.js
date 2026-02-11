@@ -113,6 +113,7 @@ const initialState = {
   // new fields for file details
   details: null,
   detailsStatus: 'idle',
+  itemsScanningStatus: 'idle',
   detailsError: null,
   BoxList: [],
   boxCode: [],
@@ -142,6 +143,8 @@ const outBoundSlice = createSlice({
     clearOutBoundDetails(state) {
       state.details = null;
       state.detailsStatus = 'idle';
+      state.itemsScanningStatus = 'idle';
+      state.itemsScanning = [];
       state.detailsError = null;
     },
     setDeliveryCodes: (state, action) => {
@@ -193,6 +196,7 @@ const outBoundSlice = createSlice({
       }
     },
     resetOutBoundState: () => initialStateScanner,
+    resetScannedData: () =>   initialState.scannedDataByFileNew = {},
 
   },
   extraReducers: (builder) => {
@@ -222,15 +226,15 @@ const outBoundSlice = createSlice({
         state.error = action.payload ?? action.error?.message;
       })
       .addCase(fetchFullRowByMatch.pending, (state) => {
-        state.status = 'loading';
+        state.itemsScanningStatus = 'loading';
         state.error = null;
       })
       .addCase(fetchFullRowByMatch.fulfilled, (state, action) => {
-        state.status = 'succeeded';
+        state.itemsScanningStatus = 'succeeded';
         state.itemsScanning = action.payload ?? null;
       })
       .addCase(fetchFullRowByMatch.rejected, (state, action) => {
-        state.status = 'failed';
+        state.itemsScanningStatus = 'failed';
         state.error = action.payload ?? action.error?.message;
       })
       // handlers for file details thunk
@@ -273,7 +277,7 @@ const outBoundSlice = createSlice({
   },
 })
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
@@ -283,6 +287,7 @@ export const selectOutBound = (state) => {
     error: slice.error ?? null,
     details: slice.details ?? null,
     detailsStatus: slice.detailsStatus ?? 'idle',
+    itemsScanningStatus: slice.itemsScanningStatus ?? 'idle',
     detailsError: slice.detailsError ?? null,
     scannedDataByFile: slice.scannedDataByFile ?? {},
     packingDataByFile: slice.packingDataByFile ?? {},

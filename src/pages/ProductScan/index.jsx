@@ -19,7 +19,7 @@ import {
   fetchFileDetails,
   selectOutBound,
   setScannedData,
-  resetOutBoundState,
+  resetScannedData,
   saveProductScans,
   setScannedDataNew
 } from "../../services/redux/slice/outBoundSlice";
@@ -41,12 +41,14 @@ const ProductScan = (props) => {
   const alertShownRef = useRef(false);
   const fileName = props.route.params?.fileName;
 
-  const { details, detailsStatus, scannedDataByFile, scannedDataByFileNew } =
+  const { details, detailsStatus, scannedDataByFile, scannedDataByFileNew, itemsScanning, itemsScanningStatus } =
     useSelector(selectOutBound);
-  console.log('ProductScan - fileName:', scannedDataByFileNew);
+  console.log('ProductScan - Need tofileName:', itemsScanning);
 
   const key = normalizeFileName(fileName);
+  const productFileName = normalizeFileName(props.route.params?.productName);
   const reduxScannedData = scannedDataByFileNew[key] || [];
+  console.log('reduxScannedData', reduxScannedData, fileName);
 
   const [barcode, setBarcode] = useState("");
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
@@ -66,10 +68,10 @@ const ProductScan = (props) => {
   /* ---------------- fetch file details ---------------- */
 
   useEffect(() => {
-    if (detailsStatus === "idle" && fileName) {
+    if (itemsScanningStatus === "idle" && fileName) {
       dispatch(fetchFileDetails(fileName));
     }
-  }, [detailsStatus, fileName, dispatch]);
+  }, [itemsScanningStatus, fileName, dispatch]);
 
   /* ---------------- redux → local sync (SAFE, ONE TIME) ---------------- */
 
@@ -78,9 +80,15 @@ const ProductScan = (props) => {
   }, [fileName]); // 👈 important: NOT watching reduxScannedData
 
   /* ---------------- barcode scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
-
+// ...existing code...
   useEffect(() => {
     if (!barcode || !fileName) return;
+
+    // Block processing while an alert is open
+    if (alertShownRef.current) {
+      setBarcode("");
+      return;
+    }
 
     const parts = barcode.split("_");
     const material = parts[0]?.trim();
@@ -92,17 +100,6 @@ const ProductScan = (props) => {
       return;
     }
 
-    if (
-      blockedMaterials.includes(material) ||
-      scannedDataLocal.some(
-        (i) => i.title === material && i.status === "done"
-      )
-    ) {
-      showAlert("Item already completed", "This item is fully scanned");
-      setBarcode("");
-      return;
-    }
-
     const scannedQty = Number(scannedQtyRaw);
     if (Number.isNaN(scannedQty) || scannedQty <= 0) {
       showAlert("Invalid scanned quantity");
@@ -110,42 +107,71 @@ const ProductScan = (props) => {
       return;
     }
 
-    const matching = Array.isArray(details?.data)
-      ? details.data.filter((i) => i.Material === material)
+    // Find matching items (used to compute totalQty and check tolerance)
+    const matching = Array.isArray(itemsScanning?.data)
+      ? itemsScanning.data.filter((i) => i.Material === material)
       : [];
-
 
     const totalQty = matching.reduce(
       (sum, item) => sum + Number(item.Delivery_Quantity || 0),
       0
     );
 
+    // If any matching item has Tolerance === '*' allow over-scans
+    const toleranceStar = matching.some((i) => String(i.Tolerance) === "*");
+
+    // Block if item is already completed (unless tolerance is '*')
+    if (
+      blockedMaterials.includes(material) ||
+      (scannedDataLocal.some((i) => i.title === material && i.status === "done") &&
+        !toleranceStar)
+    ) {
+      showAlert("Item already completed", "This item is fully scanned");
+      setBarcode("");
+      return;
+    }
+
     let updated;
-    const index = scannedDataLocal.findIndex(
-      (i) => i.title === material
-    );
+    const index = scannedDataLocal.findIndex((i) => i.title === material);
 
     if (index > -1) {
       const existing = scannedDataLocal[index];
       const newScanned = existing.scanned + scannedQty;
 
+      // BLOCK: prevent adding a scan that would push total beyond allowed when no tolerance star
+      if (!toleranceStar && newScanned > existing.qty) {
+        showAlert(
+          "Scanned quantity exceeds allowed quantity",
+          `Remaining quantity: ${Math.max(0, existing.qty - existing.scanned)}`
+        );
+        setBarcode("");
+        return;
+      }
+
+      // If tolerance is '*', don't block further scanning — still show a sensible status
       const status =
-        newScanned >= existing.qty
-          ? "done"
-          : "partial";
+        newScanned >= existing.qty && !toleranceStar ? "done" : "partial";
 
       updated = scannedDataLocal.map((item, i) =>
-        i === index
-          ? { ...item, scanned: newScanned, status }
-          : item
+        i === index ? { ...item, scanned: newScanned, status } : item
       );
 
-      if (status === "done") {
+      if (status === "done" && !toleranceStar) {
         setBlockedMaterials((p) => [...new Set([...p, material])]);
       }
     } else {
+      // BLOCK: prevent initial scan that already exceeds totalQty when no tolerance star
+      if (!toleranceStar && scannedQty > totalQty) {
+        showAlert(
+          "Scanned quantity exceeds allowed quantity",
+          `Total required: ${totalQty}`
+        );
+        setBarcode("");
+        return;
+      }
+
       const status =
-        scannedQty >= totalQty ? "done" : "partial";
+        scannedQty >= totalQty && !toleranceStar ? "done" : "partial";
 
       updated = [
         ...scannedDataLocal,
@@ -158,7 +184,7 @@ const ProductScan = (props) => {
         },
       ];
 
-      if (status === "done") {
+      if (status === "done" && !toleranceStar) {
         setBlockedMaterials((p) => [...new Set([...p, material])]);
       }
     }
@@ -178,6 +204,107 @@ const ProductScan = (props) => {
 
     setBarcode("");
   }, [barcode]); // 👈 ONLY barcode triggers this
+// ...existing code...
+
+  // useEffect(() => {
+  //   if (!barcode || !fileName) return;
+
+  //   const parts = barcode.split("_");
+  //   const material = parts[0]?.trim();
+  //   const scannedQtyRaw = parts[1]?.trim();
+
+  //   if (!material || !scannedQtyRaw) {
+  //     showAlert("Invalid barcode format");
+  //     setBarcode("");
+  //     return;
+  //   }
+
+  //   if (
+  //     blockedMaterials.includes(material) ||
+  //     scannedDataLocal.some(
+  //       (i) => i.title === material && i.status === "done"
+  //     )
+  //   ) {
+  //     showAlert("Item already completed", "This item is fully scanned");
+  //     setBarcode("");
+  //     return;
+  //   }
+
+  //   const scannedQty = Number(scannedQtyRaw);
+  //   if (Number.isNaN(scannedQty) || scannedQty <= 0) {
+  //     showAlert("Invalid scanned quantity");
+  //     setBarcode("");
+  //     return;
+  //   }
+
+  //   const matching = Array.isArray(itemsScanning?.data)
+  //     ? itemsScanning.data.filter((i) => i.Material === material)
+  //     : [];
+
+
+  //   const totalQty = matching.reduce(
+  //     (sum, item) => sum + Number(item.Delivery_Quantity || 0),
+  //     0
+  //   );
+
+  //   let updated;
+  //   const index = scannedDataLocal.findIndex(
+  //     (i) => i.title === material
+  //   );
+
+  //   if (index > -1) {
+  //     const existing = scannedDataLocal[index];
+  //     const newScanned = existing.scanned + scannedQty;
+
+  //     const status =
+  //       newScanned >= existing.qty
+  //         ? "done"
+  //         : "partial";
+
+  //     updated = scannedDataLocal.map((item, i) =>
+  //       i === index
+  //         ? { ...item, scanned: newScanned, status }
+  //         : item
+  //     );
+
+  //     if (status === "done") {
+  //       setBlockedMaterials((p) => [...new Set([...p, material])]);
+  //     }
+  //   } else {
+  //     const status =
+  //       scannedQty >= totalQty ? "done" : "partial";
+
+  //     updated = [
+  //       ...scannedDataLocal,
+  //       {
+  //         id: Math.random().toString(36).slice(2),
+  //         title: material,
+  //         qty: totalQty,
+  //         scanned: scannedQty,
+  //         status,
+  //       },
+  //     ];
+
+  //     if (status === "done") {
+  //       setBlockedMaterials((p) => [...new Set([...p, material])]);
+  //     }
+  //   }
+
+  //   /* ✅ SINGLE UPDATE + SINGLE DISPATCH */
+  //   setScannedDataLocal(updated);
+  //   dispatch(
+  //     // setScannedData({
+  //     //   fileName,
+  //     //   data: updated,
+  //     // })
+  //     setScannedDataNew({
+  //       fileName,
+  //       data: updated,
+  //     })
+  //   );
+
+  //   setBarcode("");
+  // }, [barcode]); // 👈 ONLY barcode triggers this
 
   const showAlert = (title, message = "") => {
     if (alertShownRef.current) return;
@@ -202,7 +329,7 @@ const ProductScan = (props) => {
     setBarcode("");
     setScannedDataLocal([]);
     setBlockedMaterials([]);
-    dispatch(resetOutBoundState());
+    dispatch(resetScannedData());
   };
 
 
@@ -222,7 +349,7 @@ const chunkArray = (array, size) => {
       acc[item.title] = item.scanned;
       return acc;
     }, {});
-    const updatedData = details.data
+    const updatedData = itemsScanning.data
       .filter(item => scannedMap[item.Material] != null)
       .map(item => ({
         ...item,
@@ -234,11 +361,11 @@ const chunkArray = (array, size) => {
 
   for (let i = 0; i < chunks.length; i++) {
     const payload = {
-        filename: key,
+        filename: productFileName,
         status: "true",
         data: chunks[i],
     };
-
+console.log("payload ----", payload);
     await dispatch(saveProductScans(payload)).unwrap().then(() => {
       // waits for API response
       setShowMoveForward(true);

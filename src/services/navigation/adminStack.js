@@ -151,14 +151,6 @@ const AdminTab = () => {
           headerShown: false,
         }}
       />
-      <Stack.Screen
-        screenOptions={{ headerShown: false }}
-        name="Login"
-        component={Login}
-        options={{
-          headerShown: false,
-        }}
-      />
 
     </Stack.Navigator>
   );
