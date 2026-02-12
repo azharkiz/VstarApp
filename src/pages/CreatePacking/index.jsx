@@ -7,38 +7,47 @@ import {
   StyleSheet,
   Modal,
   TextInput,
+   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useDispatch, useSelector } from 'react-redux';
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
-import { setBoxList, selectOutBound} from '../../services/redux/slice/outBoundSlice';
+import { setBoxList, selectOutBound, generatePdf, setPackingData } from '../../services/redux/slice/outBoundSlice';
 
 const CreatePacking = (props) => {
 
   const dispatch = useDispatch();
 
-  const { BoxList } = useSelector(selectOutBound);
+  const { BoxList, packingDataByFile } = useSelector(selectOutBound);
   const [boxes, setBoxes] = useState(BoxList);
-
+  console.log("CreatePacking - packingDataByFile:",Object.keys(packingDataByFile || {}).length);
+   console.log("Box pressed:", props.route.params);
   const [showModal, setShowModal] = useState(false);
   const [boxName, setBoxName] = useState("");
 
-  const handleAddBox = () => {
-    if (!boxName.trim()) return;
+const handleAddBox = () => {
+  const name = boxName.trim();
+  if (!name) return;
 
-    setBoxes((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        label: boxName.trim(),
-      },
-    ]);
+  // prevent duplicates (case-insensitive)
+  if ((boxes || []).some((b) => (b.label || "").trim().toLowerCase() === name.toLowerCase())) {
+    Alert.alert("Duplicate box", "A box with this name already exists.");
+    return;
+  }
 
-    setBoxName("");
-    setShowModal(false);
-  };
+  setBoxes((prev) => [
+    ...prev,
+    {
+      id: Date.now().toString(),
+      label: name,
+    },
+  ]);
+
+  setBoxName("");
+  setShowModal(false);
+};
 
    useEffect(() => {
     // avoid dispatching when redux already equals local to prevent infinite update loop
@@ -56,11 +65,35 @@ const CreatePacking = (props) => {
 
   const handleBoxPress = (box) => {
     // Navigate to the box details screen or perform any action
-    console.log("Box pressed:", box);
-    props.navigation.navigate('PackingSection', { boxName: box.label });
+    props.navigation.navigate('PackingSection', { boxName: box.label, productDetails: props.route.params });
 
   };
-
+  const onScanPress = () => {
+    const payload = {
+      company: "V-STAR CREATIONS (P) LTD",
+      dealer: "Highland Trading Company,Thodupuzha",
+      docNo: props.route.params?.productDetails.fileName,
+      page: "1 of 1",
+      items: [packingDataByFile]
+    };
+    dispatch(generatePdf(payload)).unwrap().then(() => {
+     
+      setTimeout(() => {
+        dispatch(
+          setPackingData({
+            fileName: "",
+            data: [],
+          })
+      );
+        props.navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: "DeliveryCodes" }],
+          })
+        );
+      }, 0);
+    });
+  };
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.row} onPress={() => handleBoxPress(item)}>
       <Text style={styles.rowText}>{item.label}</Text>
@@ -93,6 +126,10 @@ const CreatePacking = (props) => {
           ItemSeparatorComponent={() => <View style={styles.divider} />}
         />
       </View>
+    {Object.keys(packingDataByFile || {}).length > 0 && (
+        <TouchableOpacity style={styles.forwardBtn} onPress={onScanPress}>
+          <Text style={styles.forwardText}>Online Submit</Text>
+        </TouchableOpacity>)}
 
       {/* 🔹 Add Box Popup */}
       <Modal
@@ -216,6 +253,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   saveText: { color: "#fff", fontWeight: "600" },
+   forwardBtn: {
+    marginTop: 20,
+    marginRight: 18,
+    alignSelf: "flex-end",
+    backgroundColor: "#166534",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+
+  forwardText: { color: "#fff", fontWeight: "700" },
 });
 
 

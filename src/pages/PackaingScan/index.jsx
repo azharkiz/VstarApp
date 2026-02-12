@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
 import {
@@ -36,17 +37,20 @@ const PackingScan = (props) => {
   const screenContext = useScreenContext();
   const alertShownRef = useRef(false);
 
-  const { scannedDataByFile, packingDataByFile } =
+  const { scannedDataByFile, packingDataByFile, scannedDataByFileNew } =
     useSelector(selectOutBound);
 
-  const sourceFileName = props.route.params.fileName; // outbound
+  const sourceFileName = props.route.params.propDrillParams.fileName; // outbound
   const targetFileName = props.route.params.file;     // packing
 
   const sourceKey = normalizeFileName(sourceFileName);
   const targetKey = normalizeFileName(targetFileName);
 
-  const sourceData = scannedDataByFile[sourceKey] || [];
+  const sourceData = scannedDataByFileNew[sourceKey] || [];
   const reduxPackingData = packingDataByFile[targetKey] || [];
+  console.log("PackingScan - sourceData:", sourceData);
+  console.log("PackingScan - reduxPackingData:", packingDataByFile); 
+  console.log("PackingScan - params:", props.route.params);
 
   const [qrcode, setQrcode] = useState("");
   const [packingLocal, setPackingLocal] = useState([]);
@@ -86,7 +90,7 @@ const PackingScan = (props) => {
     if (
       blockedMaterials.includes(material) ||
       packingLocal.some(
-        (i) => i.title === material && i.status === "done"
+        (i) => i.Material === material && i.status === "done"
       )
     ) {
       showAlert("Item already completed");
@@ -102,7 +106,7 @@ const PackingScan = (props) => {
     }
 
     const matched = sourceData.find(
-      (i) => i.title === material
+      (i) => i.Material === material
     );
 
     if (!matched) {
@@ -113,7 +117,7 @@ const PackingScan = (props) => {
 
     let updated;
     const index = packingLocal.findIndex(
-      (i) => i.title === material
+      (i) => i.Material === material
     );
 
     if (index > -1) {
@@ -121,7 +125,7 @@ const PackingScan = (props) => {
       const newPacked = (existing.packed || 0) + scannedQty;
 
       const status =
-        newPacked >= existing.qty ? "done" : "partial";
+        newPacked >= existing.Scanned_Qty ? "done" : "partial";
 
       updated = packingLocal.map((item, i) =>
         i === index
@@ -134,7 +138,7 @@ const PackingScan = (props) => {
       }
     } else {
       const status =
-        scannedQty >= matched.qty ? "done" : "partial";
+        scannedQty >= matched.Scanned_Qty ? "done" : "partial";
 
       updated = [
         ...packingLocal,
@@ -205,21 +209,21 @@ const PackingScan = (props) => {
         {
           box: targetFileName,
           fileName: sourceFileName,
-          boxItems: data
+          boxItems: packingLocal
         }
       ]
     };
-    dispatch(generatePdf(payload)).unwrap().then(() => {
+    // dispatch(generatePdf(payload)).unwrap().then(() => {
      
-      setTimeout(() => {
-         setQrcode("");
-      setData([]);
-      dispatch(
-        setPackingData({
-          fileName: targetKey,
-          data: [],
-        })
-      );
+    //   setTimeout(() => {
+    //      setQrcode("");
+    //   setData([]);
+    //   dispatch(
+    //     setPackingData({
+    //       fileName: targetKey,
+    //       data: [],
+    //     })
+    //   );
       
         props.navigation.dispatch(
           CommonActions.reset({
@@ -227,8 +231,8 @@ const PackingScan = (props) => {
             routes: [{ name: "CreatePacking" }],
           })
         );
-      }, 0);
-    });
+      // }, 0);
+    // });
   };
 
   /* ---------------- render row ---------------- */
@@ -244,11 +248,11 @@ const PackingScan = (props) => {
         ]}
       >
         <View style={[s.cell, s.colProduct]}>
-          <Text style={s.cellText}>{item.title}</Text>
+          <Text style={s.cellText}>{item.Material}</Text>
         </View>
 
         <View style={[s.cell, s.colCenter, s.colDivider]}>
-          <Text style={s.cellText}>{item.qty}</Text>
+          <Text style={s.cellText}>{item.Scanned_Qty}</Text>
         </View>
 
         <View style={[s.cell, s.colCenter, s.colDivider]}>

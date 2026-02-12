@@ -91,7 +91,7 @@ export const generatePdf = createAsyncThunk(
   'outbound/generatePdf',
   async (payload, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/generatePdf', payload, {
+      const response = await apiClient.post('/generateNewPdf', payload, {
         headers: { 'Content-Type': 'application/json' },
       });
       return response?.data ?? null;
