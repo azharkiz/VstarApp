@@ -45,7 +45,7 @@ useEffect(() => {
     console.error("Error in handleScan:", error);
 }
 }
-    console.log("deliveryCodes ---", deliveryCodes, props.route.params.fileName);
+    // console.log("deliveryCodes ---", deliveryCodes, props.route.params.fileName);
     return (
         <View style={screenStyles.container}>
            <View style={screenStyles.headerContainer}>

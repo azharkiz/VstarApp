@@ -1,11 +1,13 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelector } from 'react-redux';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState('');
   const [loading, setLoading] = useState(true);
+  const auth = useSelector((state) => state.auth);
 
   useEffect(() => {
     const loadAuthState = async () => {
@@ -21,6 +23,16 @@ export const AuthProvider = ({ children }) => {
 
     loadAuthState();
   }, []);
+
+    useEffect(() => {
+    const token = auth?.token;
+    // adjust condition if you use a specific flag
+    if (!token) {
+      setIsLoggedIn('Login');
+    } else {
+      setIsLoggedIn('Admin');
+    }
+  }, [auth?.token]);
 
   const updateLoginState = async (state) => {
     try {

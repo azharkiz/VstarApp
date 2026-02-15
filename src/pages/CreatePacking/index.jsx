@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useDispatch, useSelector } from 'react-redux';
 import { useScreenContext } from "../../services/Context";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { Colors } from "../../thems/Colors";
 import { setBoxList, selectOutBound, generatePdf, setPackingData } from '../../services/redux/slice/outBoundSlice';
 

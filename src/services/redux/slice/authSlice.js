@@ -2,26 +2,32 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../api/apiClient';
 import { getNewToken } from '../../api/tokenHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// ...existing code...
+import { useAuthCheck } from "../../Context/AuthContext";
+/**
+ * Thunks
+ */
 export const login = createAsyncThunk(
   'auth/login',
   async ({ employee }, { rejectWithValue }) => {
     try {
-      // send body as object (your API expects POST /Login)
       const response = await apiClient.post('/Login', { employee });
       const data = response?.data || {};
 
       const token = data.token || null;
-      const refreshToken = data.refreshToken || null;
+      // accept common key names from backend
+      const refreshToken = data.refreshToken ?? data.refresh_token ?? null;
 
-      // persist auth info for refresh flow
       await AsyncStorage.setItem(
         'auth',
-        JSON.stringify({ token, refreshToken, employee: data.employee ?? employee })
+        JSON.stringify({
+          token,
+          // persist both common key names so tokenHelper / refresh logic can find it
+          refreshToken,
+          refresh_token: refreshToken,
+          employee: data.employee ?? employee,
+        })
       );
 
-      // set default header for future requests
       if (token) apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
 
       return data;
@@ -36,20 +42,35 @@ export const refreshAuthToken = createAsyncThunk(
   'auth/refresh-token',
   async (_, { rejectWithValue }) => {
     try {
-      // getNewToken should update AsyncStorage and return the new access token string
       const newToken = await getNewToken();
       if (!newToken) return rejectWithValue({ message: 'Refresh failed' });
 
       apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
       return { token: newToken };
     } catch (error) {
+      // cleanup on refresh failure so app can return to login
+      try {
+        await AsyncStorage.removeItem('auth');
+        await AsyncStorage.removeItem('isLoggedIn');
+      } catch (e) {
+        // ignore
+      }
+      try {
+        if (apiClient?.defaults?.headers) {
+          delete apiClient.defaults.headers.common.Authorization;
+        }
+      } catch (e) {
+        // ignore
+      }
       const payload = error?.response?.data ?? { message: error?.message ?? 'Refresh failed' };
       return rejectWithValue(payload);
     }
   }
 );
-// ...existing code...
 
+/**
+ * Slice
+ */
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
@@ -64,7 +85,13 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.employee = null;
-      // clear persisted auth
+    },
+    // sessionOut: used when session expired - do NOT use React hooks in slice
+    sessionOut(state) {
+      state.token = null;
+      state.refreshToken = null;
+      state.employee = null;
+      state.status = 'idle';
     },
   },
   extraReducers: (builder) => {
@@ -77,7 +104,7 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         const payload = action.payload || {};
         state.token = payload.token ?? null;
-        state.refreshToken = payload.refreshToken ?? null;
+        state.refreshToken = payload.refreshToken ?? payload.refresh_token ?? null;
         state.employee = payload.employee ?? null;
       })
       .addCase(login.rejected, (state, action) => {
@@ -93,33 +120,54 @@ const authSlice = createSlice({
   },
 });
 
+/**
+ * Thunks / helpers for logout / session expiration that can perform side effects.
+ * These are safe to call from non-React places (e.g. apiClient interceptors).
+ */
 export const performLogout = () => {
   return async (dispatch) => {
     try {
-      // remove persisted auth + UI flag + any other keys you persist
-      await AsyncStorage.removeItem("auth");
-      await AsyncStorage.removeItem("isLoggedIn");
-      // remove any other persisted keys you use, e.g. scanned data
-      await AsyncStorage.removeItem("scannedData");
-      await AsyncStorage.removeItem("scannedDataByFile");
-      // clear axios/default api header if present (safe check)
+      await AsyncStorage.removeItem('auth');
+      await AsyncStorage.removeItem('isLoggedIn');
+      await AsyncStorage.removeItem('scannedData');
+      await AsyncStorage.removeItem('scannedDataByFile');
       try {
-        if (typeof apiClient !== "undefined" && apiClient?.defaults?.headers) {
+        if (typeof apiClient !== 'undefined' && apiClient?.defaults?.headers) {
           delete apiClient.defaults.headers.common.Authorization;
         }
       } catch (e) {
-        // ignore if apiClient not available here
+        // ignore
       }
     } catch (err) {
-      // optionally log the error
-      console.warn("performLogout cleanup failed", err);
+      console.warn('performLogout cleanup failed', err);
     } finally {
-      // update redux state
       dispatch(logout());
     }
   };
 };
 
-export const { logout } = authSlice.actions;
+export const sessionExpired = () => {
+  return async (dispatch) => {
+    try {
+      // persistent cleanup
+      await AsyncStorage.removeItem('auth');
+      await AsyncStorage.removeItem('isLoggedIn');
+      // clear axios header
+      try {
+        if (typeof apiClient !== 'undefined' && apiClient?.defaults?.headers) {
+          delete apiClient.defaults.headers.common.Authorization;
+        }
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // ignore
+    }
+    // clear redux auth state
+    dispatch(sessionOut());
+  };
+};
+
+export const { logout, sessionOut } = authSlice.actions;
 
 export default authSlice.reducer;
