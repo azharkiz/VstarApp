@@ -15,7 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useScreenContext } from "../../services/Context";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { Colors } from "../../thems/Colors";
-import { setBoxList, selectOutBound, generatePdf, setPackingData } from '../../services/redux/slice/outBoundSlice';
+import { setBoxList, selectOutBound, generatePdf, setPackingData, resetOutBoundState } from '../../services/redux/slice/outBoundSlice';
 
 const CreatePacking = (props) => {
 
@@ -80,16 +80,17 @@ const handleAddBox = () => {
     dispatch(generatePdf(payload)).unwrap().then(() => {
      
       setTimeout(() => {
-        dispatch(
-          setPackingData({
-            fileName: "",
-            data: [],
-          })
-      );
+      //   dispatch(
+      //     setPackingData({
+      //       fileName: "",
+      //       data: [],
+      //     })
+      // );
+       dispatch(resetOutBoundState());
         props.navigation.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [{ name: "DeliveryCodes" }],
+            routes: [{ name: "AdminTab" }],
           })
         );
       }, 0);
