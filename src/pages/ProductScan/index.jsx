@@ -10,6 +10,7 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import Sound from "react-native-sound";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useDispatch, useSelector } from "react-redux";
@@ -33,7 +34,7 @@ const statusIcon = (status) => {
     return { name: "checkmark-circle", color: "#f39c12" };
   return { name: "ellipse-outline", color: "#bdc3c7" };
 };
-
+Sound.setCategory("Playback");
 /* ---------------- component ---------------- */
 
 const ProductScan = (props) => {
@@ -62,6 +63,8 @@ const ProductScan = (props) => {
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
   const [blockedMaterials, setBlockedMaterials] = useState([]);
   const [showMoveForward, setShowMoveForward] = useState(false);
+  const soundRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const width =
     screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
@@ -132,7 +135,8 @@ const ProductScan = (props) => {
       ) &&
         !toleranceStar)
     ) {
-      showAlert("Item already completed", "This item is fully scanned");
+      pauseSound();
+      showAlert("Item already completed", "This item is fully scanned", "stopSound");
       setBarcode("");
       return;
     }
@@ -315,7 +319,7 @@ const ProductScan = (props) => {
   //   setBarcode("");
   // }, [barcode]); // 👈 ONLY barcode triggers this
 
-  const showAlert = (title, message = "") => {
+  const showAlert = (title, message = "", stopSound) => {
     if (alertShownRef.current) return;
 
     alertShownRef.current = true;
@@ -326,6 +330,7 @@ const ProductScan = (props) => {
           text: "OK",
           onPress: () => {
             alertShownRef.current = false;
+            if (stopSound) stopSound();
           },
         },
       ]);
@@ -389,7 +394,44 @@ const ProductScan = (props) => {
         });
     }
   };
+  useEffect(() => {
+    soundRef.current = new Sound(
+      "sample.mp3", // place file inside ios main bundle / android raw folder
+      Sound.MAIN_BUNDLE,
+      (error) => {
+        if (error) {
+          console.log("Failed to load sound", error);
+          return;
+        }
+        console.log("Duration:", soundRef.current.getDuration());
+      }
+    );
 
+    return () => {
+      soundRef.current?.release();
+    };
+  }, []);
+    const playSound = () => {
+    soundRef.current?.play((success) => {
+      if (success) {
+        console.log("Finished playing");
+      } else {
+        console.log("Playback failed");
+      }
+      setIsPlaying(false);
+    });
+    setIsPlaying(true);
+  };
+
+  const pauseSound = () => {
+    soundRef.current?.pause();
+    setIsPlaying(false);
+  };
+
+  const stopSound = () => {
+    soundRef.current?.stop();
+    setIsPlaying(false);
+  };
   const renderRow = ({ item, index }) => {
     const icon = statusIcon(item.status);
 

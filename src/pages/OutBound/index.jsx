@@ -22,7 +22,6 @@ const OutBound = (props) => {
   const screenStyles = styles(screenContext, width, height);
   const dispatch = useDispatch();
   const { items, status, error } = useSelector(selectOutBound);
-
   const load = useCallback(() => {
     dispatch(fetchOutBoundFiles());
     // dispatch(resetOutBoundState());

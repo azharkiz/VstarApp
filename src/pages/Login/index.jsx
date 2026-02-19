@@ -46,7 +46,7 @@ const Login = () => {
         <View style={screenStyles.container}>
             <Image source={require('../../assets/vstar.png')} style={screenStyles.logo} />
             <TextInput placeholder="Emp Code" style={screenStyles.input} secureTextEntry onChangeText={(val)=>setEmployee(val)} />
-            {error ? <Text style={screenStyles.errorText}>{String(error)}</Text> : null}
+            {error ? <Text style={screenStyles.errorText}>{'Invalid employee code'}</Text> : null}
             <TouchableOpacity
                 onPress={handleLogin}
                 style={screenStyles.button}
@@ -110,7 +110,7 @@ const styles = (screenContext, width, height) => ({
         fontSize: 16,
     },
     errorText: {
-        // color: Colors.name.red,
+        color: Colors.name.red,
         fontSize: 14,
         marginBottom: 10,
     },

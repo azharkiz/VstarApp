@@ -21,7 +21,7 @@ const CreatePacking = (props) => {
 
   const dispatch = useDispatch();
 
-  const { BoxList, packingDataByFile } = useSelector(selectOutBound);
+  const { BoxList, packingDataByFile, deliveryCodes } = useSelector(selectOutBound);
   const [boxes, setBoxes] = useState(BoxList);
   console.log("CreatePacking - packingDataByFile:",Object.keys(packingDataByFile || {}).length);
    console.log("Box pressed:", props.route.params);
