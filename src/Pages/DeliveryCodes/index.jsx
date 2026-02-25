@@ -17,7 +17,7 @@ const DeliveryCodes = (props) => {
     );
     const dispatch = useDispatch();
      const { deliveryCodes, status, error } = useSelector(selectOutBound);
-
+console.log("mankadakuzhil thamma ---", deliveryCodes)
     const [employee, setEmployee] = useState("");
 useEffect(() => {
     const filename = props.route?.params?.fileName;
@@ -37,7 +37,7 @@ useEffect(() => {
                 Name_of_Party: item.Name_of_Party
         };
     dispatch(fetchFullRowByMatch(payload)).unwrap().then((data) => {
-        props.navigation.navigate('ProductScan', { fileName: item.Delivery, productName: props.route?.params?.fileName });
+        props.navigation.navigate('ProductScan', { fileName: item.Delivery, productName: props.route?.params?.fileName,  nameofParty: item.Name_of_Party });
     }).catch((error) => {
         console.error("Error fetching full row:", error);
     });

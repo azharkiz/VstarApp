@@ -22,6 +22,7 @@ const OutBound = (props) => {
   const screenStyles = styles(screenContext, width, height);
   const dispatch = useDispatch();
   const { items, status, error } = useSelector(selectOutBound);
+  console.log("mankadakuzhil thamma ---", items)
   const load = useCallback(() => {
     dispatch(fetchOutBoundFiles());
     // dispatch(resetOutBoundState());

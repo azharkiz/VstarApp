@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import Sound from "react-native-sound";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -36,12 +37,15 @@ const PackingScan = (props) => {
   const dispatch = useDispatch();
   const screenContext = useScreenContext();
   const alertShownRef = useRef(false);
+  Sound.setCategory("Playback");
+  const soundRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const { scannedDataByFile, packingDataByFile, scannedDataByFileNew } =
     useSelector(selectOutBound);
 
   const sourceFileName = props.route.params.propDrillParams.fileName; // outbound
-  const targetFileName = props.route.params.file;     // packing
+  const targetFileName = props.route.params.file; // packing
 
   const sourceKey = normalizeFileName(sourceFileName);
   const targetKey = normalizeFileName(targetFileName);
@@ -49,7 +53,7 @@ const PackingScan = (props) => {
   const sourceData = scannedDataByFileNew[sourceKey] || [];
   const reduxPackingData = packingDataByFile[targetKey] || [];
   console.log("PackingScan - sourceData:", sourceData);
-  console.log("PackingScan - reduxPackingData:", packingDataByFile); 
+  console.log("PackingScan - reduxPackingData:", packingDataByFile);
   console.log("PackingScan - params:", props.route.params);
 
   const [qrcode, setQrcode] = useState("");
@@ -57,13 +61,9 @@ const PackingScan = (props) => {
   const [blockedMaterials, setBlockedMaterials] = useState([]);
 
   const width =
-    screenContext[
-      screenContext.isPortrait ? "windowWidth" : "windowHeight"
-    ];
+    screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
   const height =
-    screenContext[
-      screenContext.isPortrait ? "windowHeight" : "windowWidth"
-    ];
+    screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(width, height);
 
   /* ---------------- redux → local sync (SAFE) ---------------- */
@@ -73,7 +73,44 @@ const PackingScan = (props) => {
   }, [targetKey]); // 👈 important
 
   /* ---------------- QR scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
+ useEffect(() => {
+    soundRef.current = new Sound(
+      "beepwarning.mp3", // place file inside ios main bundle / android raw folder
+      Sound.MAIN_BUNDLE,
+      (error) => {
+        if (error) {
+          console.log("Failed to load sound", error);
+          return;
+        }
+        console.log("Duration:", soundRef.current.getDuration());
+      },
+    );
 
+    return () => {
+      soundRef.current?.release();
+    };
+  }, []);
+  const playSound = () => {
+    soundRef.current?.play((success) => {
+      if (success) {
+        console.log("Finished playing");
+      } else {
+        console.log("Playback failed");
+      }
+      setIsPlaying(false);
+    });
+    setIsPlaying(true);
+  };
+
+  const pauseSound = () => {
+    soundRef.current?.pause();
+    setIsPlaying(false);
+  };
+
+  const stopSound = () => {
+    soundRef.current?.stop();
+    setIsPlaying(false);
+  };
   useEffect(() => {
     if (!qrcode || !targetKey) return;
 
@@ -89,11 +126,12 @@ const PackingScan = (props) => {
 
     if (
       blockedMaterials.includes(material) ||
-      packingLocal.some(
-        (i) => i.Material === material && i.status === "done"
-      )
+      packingLocal.some((i) => i.Material === material && i.status === "done")
     ) {
-      showAlert("Item already completed");
+      playSound();
+      setTimeout(() => {
+        showAlert("Item already completed", true);
+      }, 200);
       setQrcode("");
       return;
     }
@@ -105,9 +143,7 @@ const PackingScan = (props) => {
       return;
     }
 
-    const matched = sourceData.find(
-      (i) => i.Material === material
-    );
+    const matched = sourceData.find((i) => i.Material === material);
 
     if (!matched) {
       showAlert("Material not found");
@@ -116,29 +152,23 @@ const PackingScan = (props) => {
     }
 
     let updated;
-    const index = packingLocal.findIndex(
-      (i) => i.Material === material
-    );
+    const index = packingLocal.findIndex((i) => i.Material === material);
 
     if (index > -1) {
       const existing = packingLocal[index];
       const newPacked = (existing.packed || 0) + scannedQty;
 
-      const status =
-        newPacked >= existing.Scanned_Qty ? "done" : "partial";
+      const status = newPacked >= existing.Scanned_Qty ? "done" : "partial";
 
       updated = packingLocal.map((item, i) =>
-        i === index
-          ? { ...item, packed: newPacked, status }
-          : item
+        i === index ? { ...item, packed: newPacked, status } : item,
       );
 
       if (status === "done") {
         setBlockedMaterials((p) => [...new Set([...p, material])]);
       }
     } else {
-      const status =
-        scannedQty >= matched.Scanned_Qty ? "done" : "partial";
+      const status = scannedQty >= matched.Scanned_Qty ? "done" : "partial";
 
       updated = [
         ...packingLocal,
@@ -160,7 +190,7 @@ const PackingScan = (props) => {
       setPackingData({
         fileName: targetKey,
         data: updated,
-      })
+      }),
     );
 
     setQrcode("");
@@ -168,7 +198,7 @@ const PackingScan = (props) => {
 
   /* ---------------- alert ---------------- */
 
-  const showAlert = (title, message = "") => {
+  const showAlert = (title, message = "",stopSound) => {
     if (alertShownRef.current) return;
 
     alertShownRef.current = true;
@@ -179,6 +209,7 @@ const PackingScan = (props) => {
           text: "OK",
           onPress: () => {
             alertShownRef.current = false;
+            if (stopSound) stopSound();
           },
         },
       ]);
@@ -195,7 +226,7 @@ const PackingScan = (props) => {
       setPackingData({
         fileName: targetKey,
         data: [],
-      })
+      }),
     );
   };
 
@@ -209,12 +240,12 @@ const PackingScan = (props) => {
         {
           box: targetFileName,
           fileName: sourceFileName,
-          boxItems: packingLocal
-        }
-      ]
+          boxItems: packingLocal,
+        },
+      ],
     };
     // dispatch(generatePdf(payload)).unwrap().then(() => {
-     
+
     //   setTimeout(() => {
     //      setQrcode("");
     //   setData([]);
@@ -224,14 +255,14 @@ const PackingScan = (props) => {
     //       data: [],
     //     })
     //   );
-      
-        props.navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: "CreatePacking" }],
-          })
-        );
-      // }, 0);
+
+    props.navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: "CreatePacking" }],
+      }),
+    );
+    // }, 0);
     // });
   };
 
@@ -317,7 +348,7 @@ const PackingScan = (props) => {
                 scrollEnabled={false}
               />
             </View>
-              <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
+            <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
               <Text style={s.forwardText}>Online Submit</Text>
             </TouchableOpacity>
           </>
@@ -326,8 +357,6 @@ const PackingScan = (props) => {
     </SafeAreaView>
   );
 };
-
-
 
 const styles = (width, height) => ({
   container: { flex: 1, backgroundColor: "#fff" },

@@ -72,7 +72,7 @@ const handleAddBox = () => {
   const onScanPress = () => {
     const payload = {
       company: "V-STAR CREATIONS (P) LTD",
-      dealer: "Highland Trading Company,Thodupuzha",
+      dealer: props.route.params?.productDetails.nameofParty,
       docNo: props.route.params?.productDetails.fileName,
       page: "1 of 1",
       items: [packingDataByFile]

@@ -52,12 +52,11 @@ const ProductScan = (props) => {
     itemsScanningStatus,
     packingDataByFile,
   } = useSelector(selectOutBound);
-  console.log("ProductScan - Need tofileName:", itemsScanning);
+  console.log("items for scan---", itemsScanning)
 
   const key = normalizeFileName(fileName);
   const productFileName = normalizeFileName(props.route.params?.productName);
   const reduxScannedData = scannedDataByFileNew[key] || [];
-  console.log("reduxScannedData", reduxScannedData, fileName);
 
   const [barcode, setBarcode] = useState("");
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
@@ -135,8 +134,13 @@ const ProductScan = (props) => {
       ) &&
         !toleranceStar)
     ) {
-      pauseSound();
-      showAlert("Item already completed", "This item is fully scanned", "stopSound");
+        playSound();
+        setTimeout(() => {
+      showAlert(
+        "Item already completed",
+        "This item is fully scanned",
+      );
+        }, 200);
       setBarcode("");
       return;
     }
@@ -150,13 +154,18 @@ const ProductScan = (props) => {
 
       // BLOCK: prevent adding a scan that would push total beyond allowed when no tolerance star
       if (!toleranceStar && newScanned > existing.qty) {
-        showAlert(
-          "Scanned quantity exceeds allowed quantity",
-          `Remaining quantity: ${Math.max(
-            0,
-            existing.qty - existing.Scanned_Qty,
-          )}`,
-        );
+        playSound();
+
+        setTimeout(() => {
+          showAlert(
+            "Scanned quantity exceeds allowed quantity",
+            `Remaining quantity: ${Math.max(
+              0,
+              existing.qty - existing.Scanned_Qty,
+            )}`,
+            true,
+          );
+        }, 200);
         setBarcode("");
         return;
       }
@@ -175,11 +184,16 @@ const ProductScan = (props) => {
     } else {
       // BLOCK: prevent initial scan that already exceeds totalQty when no tolerance star
       if (!toleranceStar && scannedQty > totalQty) {
-        showAlert(
-          "Scanned quantity exceeds allowed quantity",
-          `Total required: ${totalQty}`,
-        );
+        playSound();
+        setTimeout(() => {
+          showAlert(
+            "Scanned quantity exceeds allowed quantity",
+            `Total required: ${totalQty}`,
+            true,
+          );
+        }, 200);
         setBarcode("");
+
         return;
       }
 
@@ -218,106 +232,6 @@ const ProductScan = (props) => {
 
     setBarcode("");
   }, [barcode]); // 👈 ONLY barcode triggers this
-  // ...existing code...
-
-  // useEffect(() => {
-  //   if (!barcode || !fileName) return;
-
-  //   const parts = barcode.split("_");
-  //   const material = parts[0]?.trim();
-  //   const scannedQtyRaw = parts[1]?.trim();
-
-  //   if (!material || !scannedQtyRaw) {
-  //     showAlert("Invalid barcode format");
-  //     setBarcode("");
-  //     return;
-  //   }
-
-  //   if (
-  //     blockedMaterials.includes(material) ||
-  //     scannedDataLocal.some(
-  //       (i) => i.title === material && i.status === "done"
-  //     )
-  //   ) {
-  //     showAlert("Item already completed", "This item is fully scanned");
-  //     setBarcode("");
-  //     return;
-  //   }
-
-  //   const scannedQty = Number(scannedQtyRaw);
-  //   if (Number.isNaN(scannedQty) || scannedQty <= 0) {
-  //     showAlert("Invalid scanned quantity");
-  //     setBarcode("");
-  //     return;
-  //   }
-
-  //   const matching = Array.isArray(itemsScanning?.data)
-  //     ? itemsScanning.data.filter((i) => i.Material === material)
-  //     : [];
-
-  //   const totalQty = matching.reduce(
-  //     (sum, item) => sum + Number(item.Delivery_Quantity || 0),
-  //     0
-  //   );
-
-  //   let updated;
-  //   const index = scannedDataLocal.findIndex(
-  //     (i) => i.title === material
-  //   );
-
-  //   if (index > -1) {
-  //     const existing = scannedDataLocal[index];
-  //     const newScanned = existing.scanned + scannedQty;
-
-  //     const status =
-  //       newScanned >= existing.qty
-  //         ? "done"
-  //         : "partial";
-
-  //     updated = scannedDataLocal.map((item, i) =>
-  //       i === index
-  //         ? { ...item, scanned: newScanned, status }
-  //         : item
-  //     );
-
-  //     if (status === "done") {
-  //       setBlockedMaterials((p) => [...new Set([...p, material])]);
-  //     }
-  //   } else {
-  //     const status =
-  //       scannedQty >= totalQty ? "done" : "partial";
-
-  //     updated = [
-  //       ...scannedDataLocal,
-  //       {
-  //         id: Math.random().toString(36).slice(2),
-  //         title: material,
-  //         qty: totalQty,
-  //         scanned: scannedQty,
-  //         status,
-  //       },
-  //     ];
-
-  //     if (status === "done") {
-  //       setBlockedMaterials((p) => [...new Set([...p, material])]);
-  //     }
-  //   }
-
-  //   /* ✅ SINGLE UPDATE + SINGLE DISPATCH */
-  //   setScannedDataLocal(updated);
-  //   dispatch(
-  //     // setScannedData({
-  //     //   fileName,
-  //     //   data: updated,
-  //     // })
-  //     setScannedDataNew({
-  //       fileName,
-  //       data: updated,
-  //     })
-  //   );
-
-  //   setBarcode("");
-  // }, [barcode]); // 👈 ONLY barcode triggers this
 
   const showAlert = (title, message = "", stopSound) => {
     if (alertShownRef.current) return;
@@ -343,12 +257,12 @@ const ProductScan = (props) => {
     setBarcode("");
     setScannedDataLocal([]);
     setBlockedMaterials([]);
-     dispatch(
-    setScannedDataNew({
-      fileName: key,
-      data: [],
-    }),
-  );
+    dispatch(
+      setScannedDataNew({
+        fileName: key,
+        data: [],
+      }),
+    );
   };
 
   /* ---------------- render ---------------- */
@@ -396,7 +310,7 @@ const ProductScan = (props) => {
   };
   useEffect(() => {
     soundRef.current = new Sound(
-      "sample.mp3", // place file inside ios main bundle / android raw folder
+      "beepwarning.mp3", // place file inside ios main bundle / android raw folder
       Sound.MAIN_BUNDLE,
       (error) => {
         if (error) {
@@ -404,14 +318,14 @@ const ProductScan = (props) => {
           return;
         }
         console.log("Duration:", soundRef.current.getDuration());
-      }
+      },
     );
 
     return () => {
       soundRef.current?.release();
     };
   }, []);
-    const playSound = () => {
+  const playSound = () => {
     soundRef.current?.play((success) => {
       if (success) {
         console.log("Finished playing");
