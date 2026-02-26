@@ -21,10 +21,8 @@ const CreatePacking = (props) => {
 
   const dispatch = useDispatch();
 
-  const { BoxList, packingDataByFile, deliveryCodes } = useSelector(selectOutBound);
+  const { BoxList, packingDataByFile, deliveryCodes, localProductDetails } = useSelector(selectOutBound);
   const [boxes, setBoxes] = useState(BoxList);
-  console.log("CreatePacking - packingDataByFile:",Object.keys(packingDataByFile || {}).length);
-   console.log("Box pressed:", props.route.params);
   const [showModal, setShowModal] = useState(false);
   const [boxName, setBoxName] = useState("");
 
@@ -72,8 +70,8 @@ const handleAddBox = () => {
   const onScanPress = () => {
     const payload = {
       company: "V-STAR CREATIONS (P) LTD",
-      dealer: props.route.params?.productDetails.nameofParty,
-      docNo: props.route.params?.productDetails.fileName,
+      dealer: localProductDetails.nameofParty,
+      docNo: localProductDetails.fileName,
       page: "1 of 1",
       items: [packingDataByFile]
     };

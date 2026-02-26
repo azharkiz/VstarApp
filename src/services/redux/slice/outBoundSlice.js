@@ -63,7 +63,6 @@ export const fetchFileDetails = createAsyncThunk(
       const response = await apiClient.post('/data', body, {
         headers: { 'Content-Type': 'application/json' },
       });
-      console.log("File details response:", response);
       return response?.data ?? null;
     } catch (error) {
       return rejectWithValue(
@@ -119,6 +118,7 @@ const initialState = {
   boxCode: [],
   deliveryCodes: [],
   itemsScanning: [],
+  localProductDetails:[],
 };
 
 const initialStateScanner = {
@@ -197,6 +197,9 @@ const outBoundSlice = createSlice({
     },
     resetOutBoundState: () => initialStateScanner,
     resetScannedData: () =>   initialState.scannedDataByFileNew = {},
+    localProduct:(state, action)=> {
+      state.localProductDetails = action.payload
+    }
 
   },
   extraReducers: (builder) => {
@@ -277,7 +280,7 @@ const outBoundSlice = createSlice({
   },
 })
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
@@ -296,6 +299,7 @@ export const selectOutBound = (state) => {
     deliveryCodes: slice.deliveryCodes ?? [],
     itemsScanning: slice.itemsScanning ?? [],
     scannedDataByFileNew: slice.scannedDataByFileNew ?? {},
+    localProductDetails: slice.localProductDetails ?? []
   };
 };
 

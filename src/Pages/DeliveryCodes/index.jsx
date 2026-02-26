@@ -17,12 +17,12 @@ const DeliveryCodes = (props) => {
     );
     const dispatch = useDispatch();
      const { deliveryCodes, status, error } = useSelector(selectOutBound);
-console.log("mankadakuzhil thamma ---", deliveryCodes)
+
     const [employee, setEmployee] = useState("");
 useEffect(() => {
     const filename = props.route?.params?.fileName;
     if (!filename) {
-        console.log('DeliveryCodes: no filename provided, skipping fetch');
+        console.error('DeliveryCodes: no filename provided, skipping fetch');
         return;
     }
     const payload = { filename };

@@ -24,6 +24,7 @@ import {
   resetScannedData,
   saveProductScans,
   setScannedDataNew,
+  localProduct,
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
@@ -51,8 +52,8 @@ const ProductScan = (props) => {
     itemsScanning,
     itemsScanningStatus,
     packingDataByFile,
+    localProductDetails,
   } = useSelector(selectOutBound);
-  console.log("items for scan---", itemsScanning)
 
   const key = normalizeFileName(fileName);
   const productFileName = normalizeFileName(props.route.params?.productName);
@@ -84,6 +85,10 @@ const ProductScan = (props) => {
   useEffect(() => {
     setScannedDataLocal(reduxScannedData);
   }, [fileName]); // 👈 important: NOT watching reduxScannedData
+
+  useEffect(() => {
+    dispatch(localProduct(props.route.params));
+  }, []);
 
   /* ---------------- barcode scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
   // ...existing code...
@@ -124,7 +129,7 @@ const ProductScan = (props) => {
     );
 
     // If any matching item has Tolerance === '*' allow over-scans
-    const toleranceStar = matching.some((i) => String(i.Tolerance) === "*");
+    const toleranceStar = matching.some((i) => String(i.Tolerance) === "X");
 
     // Block if item is already completed (unless tolerance is '*')
     if (
@@ -134,13 +139,10 @@ const ProductScan = (props) => {
       ) &&
         !toleranceStar)
     ) {
-        playSound();
-        setTimeout(() => {
-      showAlert(
-        "Item already completed",
-        "This item is fully scanned",
-      );
-        }, 200);
+      playSound();
+      setTimeout(() => {
+        showAlert("Item already completed", "This item is fully scanned");
+      }, 200);
       setBarcode("");
       return;
     }
@@ -163,7 +165,6 @@ const ProductScan = (props) => {
               0,
               existing.qty - existing.Scanned_Qty,
             )}`,
-            true,
           );
         }, 200);
         setBarcode("");
@@ -189,7 +190,6 @@ const ProductScan = (props) => {
           showAlert(
             "Scanned quantity exceeds allowed quantity",
             `Total required: ${totalQty}`,
-            true,
           );
         }, 200);
         setBarcode("");
@@ -208,6 +208,7 @@ const ProductScan = (props) => {
           qty: totalQty,
           Scanned_Qty: scannedQty,
           Item_Description: matching[0]?.Item_Description || "",
+          Product: matching[0]?.Product,
           status,
         },
       ];
@@ -233,7 +234,7 @@ const ProductScan = (props) => {
     setBarcode("");
   }, [barcode]); // 👈 ONLY barcode triggers this
 
-  const showAlert = (title, message = "", stopSound) => {
+  const showAlert = (title, message = "") => {
     if (alertShownRef.current) return;
 
     alertShownRef.current = true;
@@ -244,7 +245,7 @@ const ProductScan = (props) => {
           text: "OK",
           onPress: () => {
             alertShownRef.current = false;
-            if (stopSound) stopSound();
+            stopSound();
           },
         },
       ]);
@@ -291,7 +292,7 @@ const ProductScan = (props) => {
       }));
     const BATCH_SIZE = 50;
     const chunks = chunkArray(updatedData, BATCH_SIZE);
-    console.log("ProductScan - key:", key);
+
 
     for (let i = 0; i < chunks.length; i++) {
       const payload = {
@@ -299,7 +300,6 @@ const ProductScan = (props) => {
         status: "true",
         data: chunks[i],
       };
-      console.log("payload ----", payload);
       await dispatch(saveProductScans(payload))
         .unwrap()
         .then(() => {
@@ -314,10 +314,10 @@ const ProductScan = (props) => {
       Sound.MAIN_BUNDLE,
       (error) => {
         if (error) {
-          console.log("Failed to load sound", error);
+          console.error("Failed to load sound", error);
           return;
         }
-        console.log("Duration:", soundRef.current.getDuration());
+       
       },
     );
 
@@ -328,9 +328,9 @@ const ProductScan = (props) => {
   const playSound = () => {
     soundRef.current?.play((success) => {
       if (success) {
-        console.log("Finished playing");
+        // console.log("Finished playing");
       } else {
-        console.log("Playback failed");
+        // console.log("Playback failed");
       }
       setIsPlaying(false);
     });

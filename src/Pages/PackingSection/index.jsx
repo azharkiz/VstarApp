@@ -61,7 +61,7 @@ const PackingSection = (props) => {
             setBoxCodeScanned(scannedCode);
         }
     }
-    console.log("current box code params ---:", props.route.params);
+    
     const onScanPress = (file) => {
         props.navigation.navigate('PackingScan', { file: boxCodeScanned, fileName: Object.keys(scannedDataByFileNew)[0], propDrillParams: props.route.params.productDetails.productDetails });
     };

@@ -52,9 +52,6 @@ const PackingScan = (props) => {
 
   const sourceData = scannedDataByFileNew[sourceKey] || [];
   const reduxPackingData = packingDataByFile[targetKey] || [];
-  console.log("PackingScan - sourceData:", sourceData);
-  console.log("PackingScan - reduxPackingData:", packingDataByFile);
-  console.log("PackingScan - params:", props.route.params);
 
   const [qrcode, setQrcode] = useState("");
   const [packingLocal, setPackingLocal] = useState([]);
@@ -79,10 +76,10 @@ const PackingScan = (props) => {
       Sound.MAIN_BUNDLE,
       (error) => {
         if (error) {
-          console.log("Failed to load sound", error);
+          // console.log("Failed to load sound", error);
           return;
         }
-        console.log("Duration:", soundRef.current.getDuration());
+        // console.log("Duration:", soundRef.current.getDuration());
       },
     );
 
@@ -93,9 +90,9 @@ const PackingScan = (props) => {
   const playSound = () => {
     soundRef.current?.play((success) => {
       if (success) {
-        console.log("Finished playing");
+        // console.log("Finished playing");
       } else {
-        console.log("Playback failed");
+        // console.log("Playback failed");
       }
       setIsPlaying(false);
     });
@@ -130,7 +127,7 @@ const PackingScan = (props) => {
     ) {
       playSound();
       setTimeout(() => {
-        showAlert("Item already completed", true);
+        showAlert("Item already completed");
       }, 200);
       setQrcode("");
       return;
@@ -198,7 +195,7 @@ const PackingScan = (props) => {
 
   /* ---------------- alert ---------------- */
 
-  const showAlert = (title, message = "",stopSound) => {
+  const showAlert = (title, message = "") => {
     if (alertShownRef.current) return;
 
     alertShownRef.current = true;
@@ -209,7 +206,7 @@ const PackingScan = (props) => {
           text: "OK",
           onPress: () => {
             alertShownRef.current = false;
-            if (stopSound) stopSound();
+             stopSound();
           },
         },
       ]);
