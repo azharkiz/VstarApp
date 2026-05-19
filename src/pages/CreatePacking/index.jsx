@@ -75,7 +75,9 @@ const handleAddBox = () => {
       page: "1 of 1",
       items: [packingDataByFile]
     };
-    dispatch(generatePdf(payload)).unwrap().then(() => {
+    console.log("terrt ---", payload);
+    dispatch(generatePdf(payload)).unwrap().then((res) => {
+      console.log("terrt ---", res);
      
       setTimeout(() => {
       //   dispatch(
@@ -105,9 +107,9 @@ const handleAddBox = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => props.navigation.pop()}>
+        {/* <TouchableOpacity onPress={() => props.navigation.pop()}>
           <Ionicons name="arrow-back" size={22} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <Text style={styles.title}>Create Packing</Text>
 

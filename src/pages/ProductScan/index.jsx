@@ -25,6 +25,7 @@ import {
   saveProductScans,
   setScannedDataNew,
   localProduct,
+  setProductSaved
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
@@ -53,8 +54,9 @@ const ProductScan = (props) => {
     itemsScanningStatus,
     packingDataByFile,
     localProductDetails,
+    productSavedSatus,
   } = useSelector(selectOutBound);
-
+  console.log("item scanning --", itemsScanning);
   const key = normalizeFileName(fileName);
   const productFileName = normalizeFileName(props.route.params?.productName);
   const reduxScannedData = scannedDataByFileNew[key] || [];
@@ -122,7 +124,6 @@ const ProductScan = (props) => {
     const matching = Array.isArray(itemsScanning?.data)
       ? itemsScanning.data.filter((i) => i.Material === material)
       : [];
-
     const totalQty = matching.reduce(
       (sum, item) => sum + Number(item.Delivery_Quantity || 0),
       0,
@@ -264,6 +265,7 @@ const ProductScan = (props) => {
         data: [],
       }),
     );
+      dispatch(setProductSaved(false));
   };
 
   /* ---------------- render ---------------- */
@@ -284,29 +286,38 @@ const ProductScan = (props) => {
       acc[item.Material] = item.Scanned_Qty;
       return acc;
     }, {});
-    const updatedData = itemsScanning.data
-      .filter((item) => scannedMap[item.Material] != null)
-      .map((item) => ({
-        ...item,
-        Scanned_Qty: scannedMap[item.Material],
-      }));
-    const BATCH_SIZE = 50;
-    const chunks = chunkArray(updatedData, BATCH_SIZE);
 
+    const updatedData = itemsScanning.data.map((item) => {
+      if (scannedMap[item.Material] != null) {
+        return {
+          ...item,
+          Scanned_Qty: scannedMap[item.Material],
+        };
+      }
+      return item;
+    });
+ 
+    // const BATCH_SIZE = 50;
+    // const chunks = chunkArray(updatedData, BATCH_SIZE);
 
-    for (let i = 0; i < chunks.length; i++) {
-      const payload = {
-        filename: productFileName,
-        status: "true",
-        data: chunks[i],
-      };
-      await dispatch(saveProductScans(payload))
-        .unwrap()
-        .then(() => {
-          // waits for API response
-          setShowMoveForward(true);
-        });
-    }
+    // for (let i = 0; i < chunks.length; i++) {
+    const payload = {
+      filename: productFileName,
+      status: "true",
+      data: updatedData,
+      // data: chunks[i],
+    };
+    await dispatch(saveProductScans(payload))
+      .unwrap()
+      .then((res) => {
+        console.log("product ---", res);
+        // waits for API response
+        dispatch(
+          setProductSaved(true)
+        )
+        setShowMoveForward(true);
+      });
+    // }
   };
   useEffect(() => {
     soundRef.current = new Sound(
@@ -317,7 +328,6 @@ const ProductScan = (props) => {
           console.error("Failed to load sound", error);
           return;
         }
-       
       },
     );
 
@@ -353,7 +363,7 @@ const ProductScan = (props) => {
       <View
         style={[
           s.tableRow,
-          index === scannedDataLocal.length - 1 && { borderBottomWidth: 0 },
+          // index === scannedDataLocal.length - 1 && { borderBottomWidth: 0 },
         ]}
       >
         <View style={[s.cell, s.colProduct]}>
@@ -381,7 +391,7 @@ const ProductScan = (props) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <Text style={s.title}>Product Scan</Text>
+        <Text style={s.title}>{"Product Scan"}</Text>
 
         <View style={s.inputRow}>
           <TextInput
@@ -392,7 +402,7 @@ const ProductScan = (props) => {
             autoFocus
           />
           <TouchableOpacity style={s.barcodeBtn}>
-            <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
+            <Text style={s.barcodeBtnText}>{"▮▮▮▮▮▮▮"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -402,21 +412,21 @@ const ProductScan = (props) => {
               <Ionicons name="refresh" size={16} />
               <Text> {"Re-scan"}</Text>
             </TouchableOpacity>
-            <ScrollView>
+            {/* <ScrollView> */}
               <View style={s.tableWrap}>
                 {/* HEADER */}
                 <View style={s.tableHeader}>
                   <View style={[s.cell, s.colProduct]}>
-                    <Text style={s.headerText}>Product</Text>
+                    <Text style={s.headerText}>{"Product"}</Text>
                   </View>
                   <View style={[s.cell, s.colCenter, s.colDivider]}>
-                    <Text style={s.headerText}>Qty</Text>
+                    <Text style={s.headerText}>{"Qty"}</Text>
                   </View>
                   <View style={[s.cell, s.colCenter, s.colDivider]}>
-                    <Text style={s.headerText}>Scanned Qty</Text>
+                    <Text style={s.headerText}>{"Scanned Qty"}</Text>
                   </View>
                   <View style={[s.cell, s.colStatus, s.colDivider]}>
-                    <Text style={s.headerText}>Status</Text>
+                    <Text style={s.headerText}>{"Status"}</Text>
                   </View>
                 </View>
 
@@ -425,13 +435,16 @@ const ProductScan = (props) => {
                   data={scannedDataLocal}
                   keyExtractor={(i) => i.id}
                   renderItem={renderRow}
-                  scrollEnabled
+                  showsVerticalScrollIndicator
+                  // style={{flexGrow: 0.6}}
                 />
               </View>
-            </ScrollView>
+            {/* </ScrollView> */}
             <View style={{ flexDirection: "row", justifyContent: "center" }}>
               <TouchableOpacity
-                style={[s.forwardBtn, { backgroundColor: "#166534" }]}
+                style={[s.forwardBtn, { backgroundColor: !productSavedSatus
+                        ? "#166534"
+                        : "#e5e7eb", }]}
                 onPress={onlineSubmitApi}
               >
                 <Text style={s.forwardText}>{"Online submit"}</Text>
@@ -441,22 +454,19 @@ const ProductScan = (props) => {
                   s.forwardBtn,
                   {
                     backgroundColor:
-                      showMoveForward ||
-                      Object.keys(packingDataByFile || {}).length > 0
-                        ? "#166534"
+                      productSavedSatus ? "#166534"
                         : "#e5e7eb",
                   },
                 ]}
                 onPress={
-                  showMoveForward ||
-                  Object.keys(packingDataByFile || {}).length > 0
+                  setProductSaved
                     ? onScanPress
                     : undefined
                 }
               >
-                <Text style={s.forwardText}>{"Move forward"}</Text>{" "}
-              </TouchableOpacity>{" "}
-            </View>{" "}
+                <Text style={s.forwardText}>{"Move forward"}</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </KeyboardAvoidingView>
@@ -518,6 +528,7 @@ const styles = (width, height) => ({
     borderColor: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden",
+    height: height * 1.1
   },
 
   tableHeader: {

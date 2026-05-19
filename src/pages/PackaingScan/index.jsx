@@ -272,7 +272,7 @@ const PackingScan = (props) => {
       <View
         style={[
           s.tableRow,
-          index === packingLocal.length - 1 && { borderBottomWidth: 0 },
+          // index === packingLocal.length - 1 && { borderBottomWidth: 0 },
         ]}
       >
         <View style={[s.cell, s.colProduct]}>
@@ -342,7 +342,7 @@ const PackingScan = (props) => {
                 data={packingLocal}
                 keyExtractor={(i) => i.id || i.title}
                 renderItem={renderRow}
-                scrollEnabled={false}
+               showsVerticalScrollIndicator
               />
             </View>
             <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
@@ -408,6 +408,7 @@ const styles = (width, height) => ({
     borderColor: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden",
+    height: height * 0.5
   },
 
   tableHeader: {

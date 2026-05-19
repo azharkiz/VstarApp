@@ -119,6 +119,7 @@ const initialState = {
   deliveryCodes: [],
   itemsScanning: [],
   localProductDetails:[],
+  productSavedSatus: false,
 };
 
 const initialStateScanner = {
@@ -199,6 +200,9 @@ const outBoundSlice = createSlice({
     resetScannedData: () =>   initialState.scannedDataByFileNew = {},
     localProduct:(state, action)=> {
       state.localProductDetails = action.payload
+    },
+    setProductSaved: (state, action)=> {
+      state.productSavedSatus = action.payload
     }
 
   },
@@ -280,7 +284,7 @@ const outBoundSlice = createSlice({
   },
 })
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct,setProductSaved } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
@@ -299,7 +303,8 @@ export const selectOutBound = (state) => {
     deliveryCodes: slice.deliveryCodes ?? [],
     itemsScanning: slice.itemsScanning ?? [],
     scannedDataByFileNew: slice.scannedDataByFileNew ?? {},
-    localProductDetails: slice.localProductDetails ?? []
+    localProductDetails: slice.localProductDetails ?? [],
+    productSavedSatus: slice.productSavedSatus?? false,
   };
 };
 
