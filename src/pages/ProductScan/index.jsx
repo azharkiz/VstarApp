@@ -433,6 +433,7 @@ const ProductScan = (props) => {
       data: updatedData,
       fileName: delivery,
     };
+    console.log("scannedProductPayload ----", scannedProductPayload);
     dispatch(setitemsScannedProduct(scannedProductPayload));
     await dispatch(saveProductScans(payload))
       .unwrap()

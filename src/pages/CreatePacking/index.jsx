@@ -139,16 +139,16 @@ useEffect(() => {
       dealer: localProductDetails.nameofParty,
       docNo: localProductDetails.fileName,
       page: "1 of 1",
-      items: items
+      items: [items]
     };
-     let dataSubmit = {
-        // ...itemsScannedProduct,
-        [localProductDetails?.fileName]: itemsScannedProduct?.[localProductDetails?.fileName],
-      };
+    //  let dataSubmit = {
+    //     // ...itemsScannedProduct,
+    //     [localProductDetails?.fileName]: itemsScannedProduct?.[localProductDetails?.fileName],
+    //   };
     const packedProductPayload = {
       filename: localProductDetails.productName,
       status: "true",
-      data: dataSubmit,
+      data: itemsScannedProduct?.[localProductDetails?.fileName],
     };
     dispatch(generatePdf(payload))
       .unwrap()
