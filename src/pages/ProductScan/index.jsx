@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ScrollView,
 } from "react-native";
 import Sound from "react-native-sound";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,62 +16,83 @@ import { useDispatch, useSelector } from "react-redux";
 import { useScreenContext } from "../../services/Context";
 import { Colors } from "../../thems/Colors";
 import { normalizeFileName } from "../../services/helper/common";
+
 import {
   fetchFileDetails,
   selectOutBound,
-  setScannedData,
-  resetScannedData,
   saveProductScans,
   setScannedDataNew,
   localProduct,
-  setProductSaved
+  setProductSaved,
+  setitemsScannedProduct,
+  setProductScanDetails,
+  setBoxList,
+  setPackingData,
+  setBoxCode,
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
 
 const statusIcon = (status) => {
-  if (status === "done") return { name: "checkmark-circle", color: "#155724" };
-  if (status === "partial")
-    return { name: "checkmark-circle", color: "#f39c12" };
-  return { name: "ellipse-outline", color: "#bdc3c7" };
+  if (status === "done") {
+    return {
+      name: "checkmark-circle",
+      color: "#155724",
+    };
+  }
+
+  if (status === "partial") {
+    return {
+      name: "checkmark-circle",
+      color: "#f39c12",
+    };
+  }
+
+  return {
+    name: "ellipse-outline",
+    color: "#bdc3c7",
+  };
 };
+
 Sound.setCategory("Playback");
+
 /* ---------------- component ---------------- */
 
 const ProductScan = (props) => {
   const dispatch = useDispatch();
   const screenContext = useScreenContext();
+
   const alertShownRef = useRef(false);
+  const soundRef = useRef(null);
+
   const fileName = props.route.params?.fileName;
 
   const {
-    details,
-    detailsStatus,
-    scannedDataByFile,
     scannedDataByFileNew,
     itemsScanning,
     itemsScanningStatus,
-    packingDataByFile,
-    localProductDetails,
     productSavedSatus,
+    packingDataByFile,
+    itemsScannedProduct
   } = useSelector(selectOutBound);
-  console.log("item scanning --", itemsScanning);
   const key = normalizeFileName(fileName);
+  console.log("ProductScan -:", itemsScannedProduct[key]);
+
   const productFileName = normalizeFileName(props.route.params?.productName);
+
   const reduxScannedData = scannedDataByFileNew[key] || [];
 
   const [barcode, setBarcode] = useState("");
   const [scannedDataLocal, setScannedDataLocal] = useState([]);
   const [blockedMaterials, setBlockedMaterials] = useState([]);
-  const [showMoveForward, setShowMoveForward] = useState(false);
-  const soundRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const width =
     screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
+
   const height =
     screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
-  const s = styles(screenContext, width, height);
+
+  const s = styles(width, height);
 
   /* ---------------- fetch file details ---------------- */
 
@@ -82,28 +102,72 @@ const ProductScan = (props) => {
     }
   }, [itemsScanningStatus, fileName, dispatch]);
 
-  /* ---------------- redux → local sync (SAFE, ONE TIME) ---------------- */
+  /* ---------------- redux sync ---------------- */
 
   useEffect(() => {
     setScannedDataLocal(reduxScannedData);
-  }, [fileName]); // 👈 important: NOT watching reduxScannedData
+  }, [fileName]);
 
   useEffect(() => {
     dispatch(localProduct(props.route.params));
   }, []);
 
-  /* ---------------- barcode scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
-  // ...existing code...
+  /* ---------------- sound setup ---------------- */
+
+  useEffect(() => {
+    soundRef.current = new Sound(
+      "beepwarning.mp3",
+      Sound.MAIN_BUNDLE,
+      (error) => {
+        if (error) {
+          console.log("Sound load error", error);
+        }
+      },
+    );
+
+    return () => {
+      soundRef.current?.release();
+    };
+  }, []);
+
+  const playSound = () => {
+    soundRef.current?.play();
+  };
+
+  const stopSound = () => {
+    soundRef.current?.stop();
+  };
+
+  /* ---------------- alert ---------------- */
+
+  const showAlert = (title, message = "") => {
+    if (alertShownRef.current) return;
+
+    alertShownRef.current = true;
+
+    Alert.alert(title, message, [
+      {
+        text: "OK",
+        onPress: () => {
+          alertShownRef.current = false;
+          stopSound();
+        },
+      },
+    ]);
+  };
+
+  /* ---------------- barcode scan logic ---------------- */
+
   useEffect(() => {
     if (!barcode || !fileName) return;
 
-    // Block processing while an alert is open
     if (alertShownRef.current) {
       setBarcode("");
       return;
     }
 
     const parts = barcode.split("_");
+
     const material = parts[0]?.trim();
     const scannedQtyRaw = parts[1]?.trim();
 
@@ -114,25 +178,24 @@ const ProductScan = (props) => {
     }
 
     const scannedQty = Number(scannedQtyRaw);
+
     if (Number.isNaN(scannedQty) || scannedQty <= 0) {
       showAlert("Invalid scanned quantity");
       setBarcode("");
       return;
     }
 
-    // Find matching items (used to compute totalQty and check tolerance)
     const matching = Array.isArray(itemsScanning?.data)
       ? itemsScanning.data.filter((i) => i.Material === material)
       : [];
+
     const totalQty = matching.reduce(
       (sum, item) => sum + Number(item.Delivery_Quantity || 0),
       0,
     );
 
-    // If any matching item has Tolerance === '*' allow over-scans
     const toleranceStar = matching.some((i) => String(i.Tolerance) === "X");
 
-    // Block if item is already completed (unless tolerance is '*')
     if (
       blockedMaterials.includes(material) ||
       (scannedDataLocal.some(
@@ -141,60 +204,63 @@ const ProductScan = (props) => {
         !toleranceStar)
     ) {
       playSound();
-      setTimeout(() => {
-        showAlert("Item already completed", "This item is fully scanned");
-      }, 200);
+
+      showAlert("Item already completed", "This item is fully scanned");
+
       setBarcode("");
       return;
     }
 
-    let updated;
+    let updated = [];
+
     const index = scannedDataLocal.findIndex((i) => i.Material === material);
 
     if (index > -1) {
       const existing = scannedDataLocal[index];
+
       const newScanned = existing.Scanned_Qty + scannedQty;
 
-      // BLOCK: prevent adding a scan that would push total beyond allowed when no tolerance star
       if (!toleranceStar && newScanned > existing.qty) {
         playSound();
 
-        setTimeout(() => {
-          showAlert(
-            "Scanned quantity exceeds allowed quantity",
-            `Remaining quantity: ${Math.max(
-              0,
-              existing.qty - existing.Scanned_Qty,
-            )}`,
-          );
-        }, 200);
+        showAlert(
+          "Scanned quantity exceeds allowed quantity",
+          `Remaining quantity: ${Math.max(
+            0,
+            existing.qty - existing.Scanned_Qty,
+          )}`,
+        );
+
         setBarcode("");
         return;
       }
 
-      // If tolerance is '*', don't block further scanning — still show a sensible status
       const status =
         newScanned >= existing.qty && !toleranceStar ? "done" : "partial";
 
       updated = scannedDataLocal.map((item, i) =>
-        i === index ? { ...item, Scanned_Qty: newScanned, status } : item,
+        i === index
+          ? {
+              ...item,
+              Scanned_Qty: newScanned,
+              status,
+            }
+          : item,
       );
 
       if (status === "done" && !toleranceStar) {
         setBlockedMaterials((p) => [...new Set([...p, material])]);
       }
     } else {
-      // BLOCK: prevent initial scan that already exceeds totalQty when no tolerance star
       if (!toleranceStar && scannedQty > totalQty) {
         playSound();
-        setTimeout(() => {
-          showAlert(
-            "Scanned quantity exceeds allowed quantity",
-            `Total required: ${totalQty}`,
-          );
-        }, 200);
-        setBarcode("");
 
+        showAlert(
+          "Scanned quantity exceeds allowed quantity",
+          `Total required: ${totalQty}`,
+        );
+
+        setBarcode("");
         return;
       }
 
@@ -205,6 +271,7 @@ const ProductScan = (props) => {
         ...scannedDataLocal,
         {
           id: Math.random().toString(36).slice(2),
+
           Material: material,
           qty: totalQty,
           Scanned_Qty: scannedQty,
@@ -219,13 +286,9 @@ const ProductScan = (props) => {
       }
     }
 
-    /* ✅ SINGLE UPDATE + SINGLE DISPATCH */
     setScannedDataLocal(updated);
+
     dispatch(
-      // setScannedData({
-      //   fileName,
-      //   data: updated,
-      // })
       setScannedDataNew({
         fileName,
         data: updated,
@@ -233,54 +296,116 @@ const ProductScan = (props) => {
     );
 
     setBarcode("");
-  }, [barcode]); // 👈 ONLY barcode triggers this
+  }, [barcode]);
 
-  const showAlert = (title, message = "") => {
-    if (alertShownRef.current) return;
+  /* ---------------- delete item ---------------- */
 
-    alertShownRef.current = true;
+  const handleDeleteItem = (itemToDelete) => {
+    console.log("Deleting item:", itemToDelete, scannedDataByFileNew);
+    Alert.alert("Delete Item", "Are you sure you want to delete this scan?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
 
-    setTimeout(() => {
-      Alert.alert(title, message, [
-        {
-          text: "OK",
-          onPress: () => {
-            alertShownRef.current = false;
-            stopSound();
-          },
+        onPress: () => {
+          const updated = scannedDataLocal.filter(
+            (item) => item.id !== itemToDelete.id,
+          );
+          // find which file key (eg "BX-002") contains this item
+          const fileEntries = packingDataByFile || {};
+          let targetFileKey = null;
+          for (const [fKey, arr] of Object.entries(fileEntries)) {
+            if (
+              Array.isArray(arr) &&
+              arr.some((i) => i.id === itemToDelete.id)
+            ) {
+              targetFileKey = fKey;
+              break;
+            }
+          }
+
+          // remove item from that file's array (fallback to empty array)
+          const updatedPackingData = targetFileKey
+            ? (fileEntries[targetFileKey] || []).filter(
+                (i) => i.id !== itemToDelete.id,
+              )
+            : [];
+          setScannedDataLocal(updated);
+
+          setBlockedMaterials((prev) =>
+            prev.filter((m) => m !== itemToDelete.Material),
+          );
+
+          dispatch(
+            setScannedDataNew({
+              fileName,
+              data: updated,
+            }),
+          );
+          // save back to redux under the right file key; if not found, optionally save under current key
+          if (targetFileKey) {
+            dispatch(
+              setPackingData({
+                fileName: targetFileKey,
+                data: updatedPackingData,
+              }),
+            );
+          } else {
+            // fallback: use current normalized key if that makes sense for your flow
+            dispatch(
+              setPackingData({
+                fileName: key,
+                data: updatedPackingData,
+              }),
+            );
+          }
         },
-      ]);
-    }, 100);
+      },
+    ]);
   };
 
-  /* ---------------- actions ---------------- */
+  /* ---------------- rescan ---------------- */
 
   const onRescan = () => {
     setBarcode("");
     setScannedDataLocal([]);
     setBlockedMaterials([]);
+    console.log("Rescanning...", key);
     dispatch(
       setScannedDataNew({
         fileName: key,
-        data: [],
+        data: null,
       }),
     );
-      dispatch(setProductSaved(false));
+
+    dispatch(
+      setBoxList({
+        fileName: key,
+        data: null,
+      }),
+    );
+    dispatch(
+      setBoxCode({
+        fileName: key,
+        remove: true,
+      }),
+    );
+    dispatch(
+      setPackingData({
+        fileName: key,
+        data: null,
+      }),
+    );
+
+    dispatch(setProductSaved(false));
   };
 
-  /* ---------------- render ---------------- */
-  const onScanPress = () => {
-    props.navigation.navigate("CreatePacking", {
-      productDetails: props.route.params,
-    });
-  };
-  const chunkArray = (array, size) => {
-    const chunks = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
-  };
+  /* ---------------- submit ---------------- */
+
   const onlineSubmitApi = async () => {
     const scannedMap = scannedDataLocal.reduce((acc, item) => {
       acc[item.Material] = item.Scanned_Qty;
@@ -294,96 +419,93 @@ const ProductScan = (props) => {
           Scanned_Qty: scannedMap[item.Material],
         };
       }
+
       return item;
     });
- 
-    // const BATCH_SIZE = 50;
-    // const chunks = chunkArray(updatedData, BATCH_SIZE);
 
-    // for (let i = 0; i < chunks.length; i++) {
     const payload = {
       filename: productFileName,
       status: "true",
       data: updatedData,
-      // data: chunks[i],
     };
+    const delivery = itemsScanning?.data[0].Delivery;
+    const scannedProductPayload = {
+      data: updatedData,
+      fileName: delivery,
+    };
+    dispatch(setitemsScannedProduct(scannedProductPayload));
     await dispatch(saveProductScans(payload))
       .unwrap()
-      .then((res) => {
-        console.log("product ---", res);
-        // waits for API response
-        dispatch(
-          setProductSaved(true)
-        )
-        setShowMoveForward(true);
+      .then(() => {
+        dispatch(setProductSaved(true));
       });
-    // }
   };
-  useEffect(() => {
-    soundRef.current = new Sound(
-      "beepwarning.mp3", // place file inside ios main bundle / android raw folder
-      Sound.MAIN_BUNDLE,
-      (error) => {
-        if (error) {
-          console.error("Failed to load sound", error);
-          return;
-        }
-      },
+
+  /* ---------------- move forward ---------------- */
+
+  // ...existing code...
+  const onScanPress = async () => {
+    const action = dispatch(
+      setProductScanDetails({
+        productDetails: props.route.params,
+        productName: productFileName,
+      }),
     );
 
-    return () => {
-      soundRef.current?.release();
-    };
-  }, []);
-  const playSound = () => {
-    soundRef.current?.play((success) => {
-      if (success) {
-        // console.log("Finished playing");
-      } else {
-        // console.log("Playback failed");
+    if (typeof action?.unwrap === "function") {
+      try {
+        await action.unwrap();
+      } catch (err) {
+        console.warn("setProductScanDetails failed:", err);
+        return;
       }
-      setIsPlaying(false);
+    }
+
+    props.navigation.navigate("CreatePacking", {
+      productDetails: props.route.params,
+      productName: productFileName,
     });
-    setIsPlaying(true);
   };
 
-  const pauseSound = () => {
-    soundRef.current?.pause();
-    setIsPlaying(false);
-  };
+  /* ---------------- render row ---------------- */
 
-  const stopSound = () => {
-    soundRef.current?.stop();
-    setIsPlaying(false);
-  };
-  const renderRow = ({ item, index }) => {
+  const renderRow = ({ item }) => {
     const icon = statusIcon(item.status);
 
     return (
-      <View
-        style={[
-          s.tableRow,
-          // index === scannedDataLocal.length - 1 && { borderBottomWidth: 0 },
-        ]}
-      >
+      <View style={s.tableRow}>
+        {/* Product */}
         <View style={[s.cell, s.colProduct]}>
           <Text style={s.cellText}>{item.Material}</Text>
         </View>
 
+        {/* Qty */}
         <View style={[s.cell, s.colCenter, s.colDivider]}>
           <Text style={s.cellText}>{item.qty}</Text>
         </View>
 
+        {/* Scanned Qty */}
         <View style={[s.cell, s.colCenter, s.colDivider]}>
           <Text style={s.cellText}>{item.Scanned_Qty}</Text>
         </View>
 
+        {/* Status */}
         <View style={[s.cell, s.colStatus, s.colDivider]}>
           <Ionicons name={icon.name} color={icon.color} size={20} />
         </View>
+
+        {/* Delete */}
+        <TouchableOpacity
+          style={s.deleteBtn}
+          onPress={() => handleDeleteItem(item)}
+        >
+          <Ionicons name="trash-outline" size={20} color="#dc2626" />
+        </TouchableOpacity>
       </View>
     );
   };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <SafeAreaView style={s.container}>
@@ -391,8 +513,9 @@ const ProductScan = (props) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <Text style={s.title}>{"Product Scan"}</Text>
+        <Text style={s.title}>Product Scan</Text>
 
+        {/* Input */}
         <View style={s.inputRow}>
           <TextInput
             placeholder="Barcode"
@@ -401,70 +524,89 @@ const ProductScan = (props) => {
             onChangeText={setBarcode}
             autoFocus
           />
+
           <TouchableOpacity style={s.barcodeBtn}>
-            <Text style={s.barcodeBtnText}>{"▮▮▮▮▮▮▮"}</Text>
+            <Text style={s.barcodeBtnText}>▮▮▮▮▮▮▮</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Table */}
         {scannedDataLocal.length > 0 && (
           <>
             <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
               <Ionicons name="refresh" size={16} />
-              <Text> {"Re-scan"}</Text>
+
+              <Text> Re-scan</Text>
             </TouchableOpacity>
-            {/* <ScrollView> */}
-              <View style={s.tableWrap}>
-                {/* HEADER */}
-                <View style={s.tableHeader}>
-                  <View style={[s.cell, s.colProduct]}>
-                    <Text style={s.headerText}>{"Product"}</Text>
-                  </View>
-                  <View style={[s.cell, s.colCenter, s.colDivider]}>
-                    <Text style={s.headerText}>{"Qty"}</Text>
-                  </View>
-                  <View style={[s.cell, s.colCenter, s.colDivider]}>
-                    <Text style={s.headerText}>{"Scanned Qty"}</Text>
-                  </View>
-                  <View style={[s.cell, s.colStatus, s.colDivider]}>
-                    <Text style={s.headerText}>{"Status"}</Text>
-                  </View>
+
+            <View style={s.tableWrap}>
+              {/* Header */}
+              <View style={s.tableHeader}>
+                <View style={[s.cell, s.colProduct]}>
+                  <Text style={s.headerText}>Product</Text>
                 </View>
 
-                {/* BODY */}
-                <FlatList
-                  data={scannedDataLocal}
-                  keyExtractor={(i) => i.id}
-                  renderItem={renderRow}
-                  showsVerticalScrollIndicator
-                  // style={{flexGrow: 0.6}}
-                />
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Qty</Text>
+                </View>
+
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Scanned Qty</Text>
+                </View>
+
+                <View style={[s.cell, s.colStatus, s.colDivider]}>
+                  <Text style={s.headerText}>Status</Text>
+                </View>
+
+                <View style={s.deleteBtn}>
+                  <Text style={s.headerText}>Delete</Text>
+                </View>
               </View>
-            {/* </ScrollView> */}
-            <View style={{ flexDirection: "row", justifyContent: "center" }}>
+
+              {/* Body */}
+              <FlatList
+                data={scannedDataLocal}
+                keyExtractor={(i) => i.id}
+                renderItem={renderRow}
+              />
+            </View>
+
+            {/* Buttons */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
               <TouchableOpacity
-                style={[s.forwardBtn, { backgroundColor: !productSavedSatus
-                        ? "#166534"
-                        : "#e5e7eb", }]}
+                style={[
+                  s.forwardBtn,
+                  {
+                    backgroundColor: "#166534",
+                  },
+                ]}
                 onPress={onlineSubmitApi}
               >
-                <Text style={s.forwardText}>{"Online submit"}</Text>
+                <Text style={s.forwardText}>Online submit</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[
                   s.forwardBtn,
                   {
                     backgroundColor:
-                      productSavedSatus ? "#166534"
-                        : "#e5e7eb",
+                      itemsScannedProduct[key]?.length > 0
+                        ? "#166534"
+                    : "#e5e7eb",
                   },
                 ]}
                 onPress={
-                  setProductSaved
+                  itemsScannedProduct[key]?.length > 0
                     ? onScanPress
                     : undefined
                 }
               >
-                <Text style={s.forwardText}>{"Move forward"}</Text>
+                <Text style={s.forwardText}>Move forward</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -473,10 +615,14 @@ const ProductScan = (props) => {
     </SafeAreaView>
   );
 };
+
 /* ---------------- styles ---------------- */
 
 const styles = (width, height) => ({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
 
   title: {
     textAlign: "center",
@@ -508,7 +654,10 @@ const styles = (width, height) => ({
     borderRadius: 8,
   },
 
-  barcodeBtnText: { color: "#fff", fontWeight: "700" },
+  barcodeBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
 
   rescanBtn: {
     marginLeft: 18,
@@ -528,7 +677,7 @@ const styles = (width, height) => ({
     borderColor: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden",
-    height: height * 1.1
+    height: height * 0.55,
   },
 
   tableHeader: {
@@ -555,12 +704,36 @@ const styles = (width, height) => ({
     borderColor: "#e5e7eb",
   },
 
-  colProduct: { flex: 2 },
-  colCenter: { flex: 1, alignItems: "center" },
-  colStatus: { width: 72, alignItems: "center" },
+  colProduct: {
+    flex: 2,
+  },
 
-  headerText: { fontWeight: "700", color: "#374151" },
-  cellText: { color: "#111827" },
+  colCenter: {
+    flex: 1,
+    alignItems: "center",
+  },
+
+  colStatus: {
+    width: 72,
+    alignItems: "center",
+  },
+
+  deleteBtn: {
+    width: 70,
+    justifyContent: "center",
+    alignItems: "center",
+    borderLeftWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+
+  headerText: {
+    fontWeight: "700",
+    color: "#374151",
+  },
+
+  cellText: {
+    color: "#111827",
+  },
 
   forwardBtn: {
     marginTop: 20,
@@ -571,7 +744,10 @@ const styles = (width, height) => ({
     borderRadius: 8,
   },
 
-  forwardText: { color: "#fff", fontWeight: "700" },
+  forwardText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
 });
 
 export default ProductScan;

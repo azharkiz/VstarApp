@@ -93,6 +93,23 @@ export const generatePdf = createAsyncThunk(
       const response = await apiClient.post('/generateNewPdf', payload, {
         headers: { 'Content-Type': 'application/json' },
       });
+      console.log("PDF generated successfully:", response);
+      return response?.data ?? null;
+    } catch (error) {
+      return rejectWithValue(
+        error?.response?.data ?? { message: error?.message ?? 'Request failed' }
+      );
+    }
+  }
+);
+
+export const submitProductPacked = createAsyncThunk(
+  'outbound/SaveFinalProductScan',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post('/SaveFinalProductScan', payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
       return response?.data ?? null;
     } catch (error) {
       return rejectWithValue(
@@ -120,6 +137,8 @@ const initialState = {
   itemsScanning: [],
   localProductDetails:[],
   productSavedSatus: false,
+  itemsScannedProduct:{},
+  productScanDetailsRedux:{}
 };
 
 const initialStateScanner = {
@@ -163,39 +182,76 @@ const outBoundSlice = createSlice({
       state.scannedDataByFile[key] = data;
   },
     setScannedDataNew: (state, action) => {
-      const { fileName, data } = action.payload;
-
-      // 🔐 safety guard (optional but recommended)
-      if (!state.scannedDataByFileNew) {
-        state.scannedDataByFileNew = {};
-      }
-      state.scannedDataByFileNew[fileName] = data;
+  const { fileName, data } = action.payload;
+  if (!state.scannedDataByFileNew) state.scannedDataByFileNew = {};
+  const key = normalizeFileName(fileName);
+  if (data === null || typeof data === "undefined") {
+    // delete the file entry
+    delete state.scannedDataByFileNew[key];
+  } else {
+    state.scannedDataByFileNew[key] = data;
+  }
+},
+  setitemsScannedProduct: (state, action) => {
+    const { data, fileName } = action.payload;
+    if (!state.itemsScannedProduct) {
+      state.itemsScannedProduct = {};
+    }
+    state.itemsScannedProduct[fileName] = data;
   },
-  setPackingData: (state, action) => {
-      const { fileName, data } = action.payload;
+ setPackingData: (state, action) => {
+  const { fileName, data } = action.payload;
+  if (!state.packingDataByFile || Array.isArray(state.packingDataByFile)) {
+    state.packingDataByFile = {};
+  }
+  const key = normalizeFileName(fileName);
 
-      if (!state.packingDataByFile) {
-        state.packingDataByFile = {};
+  if (data === null || typeof data === "undefined") {
+    // remove any entries whose key starts with the provided base key
+    for (const k of Object.keys(state.packingDataByFile)) {
+      if (String(k).startsWith(key)) {
+        delete state.packingDataByFile[k];
       }
-
-      state.packingDataByFile[fileName] = data;
-    },
-  setBoxList: (state, action) => {
-    state.BoxList = action.payload;
-  },
+    }
+  } else {
+    // set/replace the exact normalized key
+    state.packingDataByFile[key] = data;
+  }
+},
+setBoxList: (state, action) => {
+  const { fileName, data } = action.payload;
+  const base =
+    state.BoxList && !Array.isArray(state.BoxList) ? state.BoxList : {};
+  const key = normalizeFileName(fileName);
+  if (data === null || typeof data === "undefined") {
+    // ensure BoxList object exists then delete the key
+    state.BoxList = { ...base };
+    delete state.BoxList[key];
+  } else {
+    state.BoxList = {
+      ...base,
+      [key]: data,
+    };
+  }
+},
   setBoxCode: (state, action) => {
-    const { boxName, boxCodeNumber } = action.payload;
+  // Accepts { fileName, boxName, boxCodeNumber } OR { fileName, remove: true }
+  const { fileName, boxName, boxCodeNumber, remove } = action.payload || {};
+  if (!state.boxCode || Array.isArray(state.boxCode)) state.boxCode = {};
+  const fileKey = fileName ? normalizeFileName(fileName) : "_global";
 
-      const index = state.boxCode.findIndex(
-        item => item.boxName === boxName
-      );
+  if (remove) {
+    // delete entire file entry
+    delete state.boxCode[fileKey];
+    return;
+  }
 
-      if (index >= 0) {
-        state.boxCode[index].boxCodeNumber = boxCodeNumber;
-      } else {
-        state.boxCode.push({ boxName, boxCodeNumber });
-      }
-    },
+  if (!state.boxCode[fileKey]) state.boxCode[fileKey] = {};
+
+  // store as: state.boxCode[fileKey][boxName] = boxCodeNumber
+  if (boxName == null) return;
+  state.boxCode[fileKey][boxName] = boxCodeNumber;
+},
     resetOutBoundState: () => initialStateScanner,
     resetScannedData: () =>   initialState.scannedDataByFileNew = {},
     localProduct:(state, action)=> {
@@ -203,6 +259,9 @@ const outBoundSlice = createSlice({
     },
     setProductSaved: (state, action)=> {
       state.productSavedSatus = action.payload
+    },
+    setProductScanDetails: (state, action) => {
+      state.productScanDetailsRedux = action.payload;
     }
 
   },
@@ -284,10 +343,11 @@ const outBoundSlice = createSlice({
   },
 })
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct,setProductSaved } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct,setProductSaved, setitemsScannedProduct, setProductScanDetails } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
+  console.log("sata ---", state)
   return {
     items: slice.items ?? [],
     status: slice.status ?? 'idle',
@@ -305,6 +365,8 @@ export const selectOutBound = (state) => {
     scannedDataByFileNew: slice.scannedDataByFileNew ?? {},
     localProductDetails: slice.localProductDetails ?? [],
     productSavedSatus: slice.productSavedSatus?? false,
+    itemsScannedProduct: slice.itemsScannedProduct ?? {},
+    productScanDetailsRedux: slice.productScanDetailsRedux ?? {},
   };
 };
 

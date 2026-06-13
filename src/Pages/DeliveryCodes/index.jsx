@@ -37,6 +37,7 @@ useEffect(() => {
                 Name_of_Party: item.Name_of_Party
         };
     dispatch(fetchFullRowByMatch(payload)).unwrap().then((data) => {
+        console.log("Full row data fetched successfully:", item.Delivery);
         props.navigation.navigate('ProductScan', { fileName: item.Delivery, productName: props.route?.params?.fileName,  nameofParty: item.Name_of_Party });
     }).catch((error) => {
         console.error("Error fetching full row:", error);

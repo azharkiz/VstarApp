@@ -16,6 +16,7 @@ import PackingScan from "../../Pages/PackaingScan";
 import CreatePacking from "../../Pages/CreatePacking";
 import PackingSection from "../../Pages/PackingSection";
 import DeliveryCodes from "../../Pages/DeliveryCodes";
+import FinalSubmit from "../../Pages/FinalSubmit";
 import Login from "../../Pages/Login";
 
 import { Colors } from "../../thems/Colors";
@@ -147,6 +148,14 @@ const AdminTab = () => {
         screenOptions={{ headerShown: false }}
         name="PackingScan"
         component={PackingScan}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        screenOptions={{ headerShown: false }}
+        name="FinalSubmit"
+        component={FinalSubmit}
         options={{
           headerShown: false,
         }}

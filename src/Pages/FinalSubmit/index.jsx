@@ -26,7 +26,7 @@ import {
 } from "../../services/redux/slice/outBoundSlice";
 import { normalizeFileName } from "../../services/helper/common";
 
-const CreatePacking = (props) => {
+const FinalSubmit = (props) => {
   const dispatch = useDispatch();
 
   const {
@@ -39,7 +39,7 @@ const CreatePacking = (props) => {
 
   const [showModal, setShowModal] = useState(false);
   const [boxName, setBoxName] = useState("");
-  const fileName = props.route.params?.productDetails?.fileName === undefined ? props.route.params?.fileName :props.route.params?.productDetails?.fileName;
+  const fileName = props.route.params?.productDetails?.fileName;
   const fileNameFromParams = props.route.params?.propDrillParams?.fileName;
   const rawFileName = fileName ?? fileNameFromParams;
   const key = normalizeFileName(rawFileName);
@@ -112,21 +112,12 @@ useEffect(() => {
     }
 
     // Navigate after dispatch (or regardless if unwrap not available)
-     const productDetailsParam = props.route.params?.productDetails;
- 
-  const resolvedFileName =
-    productDetailsParam?.fileName ??
-    productDetailsParam?.productDetails?.fileName ??
-    productDetailsParam??
-    // props.route.params?.propDrillParams?.fileName ??
-    "";
-  
     props.navigation.navigate("PackingSection", {
       boxName: box.label,
-      productDetails: resolvedFileName,
+      productDetails: props.route.params,
     });
   };
- const onScanPress = () => {
+  const onScanPress = () => {
   const baseKey = normalizeFileName(localProductDetails?.fileName || "");
   // produce an object like { DED0116059BX-002: [...], ... } keeping arrays intact
   const items = Object.fromEntries(
@@ -141,6 +132,7 @@ useEffect(() => {
       page: "1 of 1",
       items: items
     };
+    console.log("Payload for PDF Generation:------", payload);
      let dataSubmit = {
         // ...itemsScannedProduct,
         [localProductDetails?.fileName]: itemsScannedProduct?.[localProductDetails?.fileName],
@@ -155,6 +147,7 @@ useEffect(() => {
       .then((res) => {
         setTimeout(() => {
           //  dispatch(resetOutBoundState());
+          console.log("Packed Product Payload:------", packedProductPayload);
           dispatch(submitProductPacked(packedProductPayload));
           props.navigation.dispatch(
             CommonActions.reset({
@@ -166,31 +159,12 @@ useEffect(() => {
       });
   };
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.row} onPress={() => handleBoxPress(item)}>
+    <TouchableOpacity style={styles.row}>
       <Text style={styles.rowText}>{item.label}</Text>
-      <Ionicons name="arrow-forward" size={20} color="#444" />
+      {/* <Ionicons name="arrow-forward" size={20} color="#444" /> */}
     </TouchableOpacity>
   );
- const baseKey = normalizeFileName(localProductDetails?.fileName || "");
-  const entries = Object.entries(packingDataByFile || {}).filter(([k]) =>
-    String(k).startsWith(baseKey),
-  );
-  const dataScanned = Object.fromEntries(entries);
 
-  // Option A: first matching key length
-// safer access + handle array-like objects
-const firstMatchKey = entries[0]?.[0];
-const firstValue = firstMatchKey ? dataScanned[firstMatchKey] : undefined;
-
-const firstMatchLength =
-  firstValue == null
-    ? 0
-    : Array.isArray(firstValue)
-    ? firstValue.length
-    : typeof firstValue.length === "number"
-    ? firstValue.length // array-like (has length)
-    : Object.keys(firstValue).length; // fallback for plain object
-    console.log("First match length:", firstMatchLength);
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -199,15 +173,15 @@ const firstMatchLength =
           <Ionicons name="arrow-back" size={22} />
         </TouchableOpacity> */}
 
-        <Text style={styles.title}>Create Packing</Text>
+        <Text style={styles.title}>Final Submit</Text>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={() => setShowModal(true)}
           style={styles.addBtn}
         >
           <Ionicons name="add" size={26} />
           <Text style={styles.addText}>Add</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Table */}
@@ -219,7 +193,7 @@ const firstMatchLength =
           ItemSeparatorComponent={() => <View style={styles.divider} />}
         />
       </View>
-      {firstMatchLength >=1 && (
+      {BoxList[key]?.length > 0 && (
         <TouchableOpacity style={styles.forwardBtn} onPress={onScanPress}>
           <Text style={styles.forwardText}>Online Submit</Text>
         </TouchableOpacity>
@@ -360,4 +334,4 @@ const styles = StyleSheet.create({
   forwardText: { color: "#fff", fontWeight: "700" },
 });
 
-export default CreatePacking;
+export default FinalSubmit;
