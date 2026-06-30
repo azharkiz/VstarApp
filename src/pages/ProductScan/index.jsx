@@ -76,7 +76,8 @@ const ProductScan = (props) => {
     itemsScannedProduct
   } = useSelector(selectOutBound);
   const key = normalizeFileName(fileName);
-  console.log("ProductScan -:", itemsScannedProduct[key]);
+  console.log("itemsScanning -:", itemsScanning);
+  console.log("scannedDataByFileNew -:", itemsScannedProduct[key]);
 
   const productFileName = normalizeFileName(props.route.params?.productName);
 
@@ -412,7 +413,8 @@ const ProductScan = (props) => {
       return acc;
     }, {});
 
-    const updatedData = itemsScanning.data.map((item) => {
+    const dataUpdateSource= itemsScannedProduct[key]?.length > 0 ? itemsScannedProduct[key] : itemsScanning?.data;
+    const updatedData = dataUpdateSource.map((item) => {
       if (scannedMap[item.Material] != null) {
         return {
           ...item,

@@ -296,7 +296,6 @@ const updateItemsScanned =
 
     return item;
   });
-
 /* dispatch */
 dispatch(
   setitemsScannedProduct({
@@ -586,7 +585,7 @@ onPress: () => {
               />
             </View>
             <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>
-              <Text style={s.forwardText}>Online Submit</Text>
+              <Text style={s.forwardText}>Add to packing list</Text>
             </TouchableOpacity>
           </>
         )}

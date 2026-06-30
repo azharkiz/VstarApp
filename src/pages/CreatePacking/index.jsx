@@ -131,15 +131,25 @@ useEffect(() => {
   // produce an object like { DED0116059BX-002: [...], ... } keeping arrays intact
   const items = Object.fromEntries(
     Object.entries(packingDataByFile || {}).filter(([k]) =>
-      String(k).startsWith(baseKey),
+      String(k).startsWith(baseKey)
     ),
   );
+ const modifiedItems = Object.fromEntries(
+  Object.entries(items).map(([key, value]) => {
+    const newKey = String(key)
+      .trim()
+      .replace(/^([A-Za-z0-9]+)(BX-\d+)$/, "$1#$2");
+
+    return [newKey, value];
+  })
+);
+  // console.log("items", JSON.xstringify(modifiedItems));
     const payload = {
       company: "V-STAR CREATIONS (P) LTD",
       dealer: localProductDetails.nameofParty,
       docNo: localProductDetails.fileName,
       page: "1 of 1",
-      items: [items]
+      items: [modifiedItems]
     };
     //  let dataSubmit = {
     //     // ...itemsScannedProduct,
@@ -150,6 +160,8 @@ useEffect(() => {
       status: "true",
       data: itemsScannedProduct?.[localProductDetails?.fileName],
     };
+    console.log("payload", payload);
+    console.log("packedProductPayload", packedProductPayload);
     dispatch(generatePdf(payload))
       .unwrap()
       .then((res) => {
@@ -185,12 +197,8 @@ const firstValue = firstMatchKey ? dataScanned[firstMatchKey] : undefined;
 const firstMatchLength =
   firstValue == null
     ? 0
-    : Array.isArray(firstValue)
-    ? firstValue.length
-    : typeof firstValue.length === "number"
-    ? firstValue.length // array-like (has length)
-    : Object.keys(firstValue).length; // fallback for plain object
-    console.log("First match length:", firstMatchLength);
+    : firstValue.length // array-like (has length)
+   
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}

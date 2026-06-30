@@ -18,7 +18,10 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setBoxCode,
   selectOutBound,
+    setPackingData,
+  setBoxList,
 } from "../../services/redux/slice/outBoundSlice";
+import { normalizeFileName } from "../../services/helper/common";
 
 const PackingSection = (props) => {
   const dispatch = useDispatch();
@@ -28,7 +31,6 @@ const PackingSection = (props) => {
     scannedDataByFileNew,
     productScanDetailsRedux,
   } = useSelector(selectOutBound);
-  console.log("PackingSection - boxCode:", boxCode);
   const [boxCodeScanned, setBoxCodeScanned] = useState("");
   const screenContext = useScreenContext();
   const width =
@@ -162,6 +164,34 @@ const PackingSection = (props) => {
       productDetails: props.route.params?.productDetails,
     });
   };
+  const onRescan = () => {
+      const fileNameRaw = props.route.params?.productDetails;
+    const fileKey =
+      typeof normalizeFileName === "function"
+        ? normalizeFileName(fileNameRaw)
+        : fileNameRaw;
+      const targetKey = normalizeFileName(fileKey + boxCodeScanned);
+    setBoxCodeScanned("");
+    dispatch(
+      setBoxCode({
+        fileName:  targetKey,
+        boxName: props.route.params?.boxName,
+        boxCodeNumber: "",
+      })
+    );
+    dispatch(
+      setPackingData({
+        fileName: targetKey,
+        data: [],
+      })
+    );
+    dispatch(
+      setBoxList({
+        fileName: targetKey,
+        data: [],
+      })
+    );
+  };
 
   return (
     <SafeAreaView style={s.container}>
@@ -172,7 +202,10 @@ const PackingSection = (props) => {
         <View style={s.header}>
           <Text style={s.title}>Box Scan</Text>
         </View>
-
+        <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
+          <Ionicons name="refresh" size={16} />
+          <Text> Re-scan</Text>
+        </TouchableOpacity>
         <View style={s.inputRow}>
           <TextInput
             placeholder="Barcode"
@@ -356,6 +389,16 @@ const styles = (screenContext, width, height) => ({
     flexDirection: "row",
   },
   forwardText: { color: "#fff", fontWeight: "700" },
+  rescanBtn: {
+    marginLeft: 18,
+    marginTop: 12,
+    backgroundColor: "#fde047",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignSelf: "flex-start",
+  },
 });
 
 export default PackingSection;
