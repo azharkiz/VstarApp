@@ -202,10 +202,10 @@ const PackingSection = (props) => {
         <View style={s.header}>
           <Text style={s.title}>Box Scan</Text>
         </View>
-        <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
+        {/* <TouchableOpacity style={s.rescanBtn} onPress={onRescan}>
           <Ionicons name="refresh" size={16} />
           <Text> Re-scan</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <View style={s.inputRow}>
           <TextInput
             placeholder="Barcode"

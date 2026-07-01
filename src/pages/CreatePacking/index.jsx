@@ -134,11 +134,11 @@ useEffect(() => {
       String(k).startsWith(baseKey)
     ),
   );
- const modifiedItems = Object.fromEntries(
+const modifiedItems = Object.fromEntries(
   Object.entries(items).map(([key, value]) => {
     const newKey = String(key)
       .trim()
-      .replace(/^([A-Za-z0-9]+)(BX-\d+)$/, "$1#$2");
+      .replace(/^([A-Za-z]+\d+)([A-Za-z].*)$/, "$1#$2");
 
     return [newKey, value];
   })
@@ -194,11 +194,8 @@ useEffect(() => {
 const firstMatchKey = entries[0]?.[0];
 const firstValue = firstMatchKey ? dataScanned[firstMatchKey] : undefined;
 
-const firstMatchLength =
-  firstValue == null
-    ? 0
-    : firstValue.length // array-like (has length)
-   
+const firstMatchLength = entries.length // array-like (has length)
+   console.log("firstMatchLength", entries);
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
