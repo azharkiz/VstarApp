@@ -73,7 +73,7 @@ const ProductScan = (props) => {
     itemsScanningStatus,
     productSavedSatus,
     packingDataByFile,
-    itemsScannedProduct
+    itemsScannedProduct,
   } = useSelector(selectOutBound);
   const key = normalizeFileName(fileName);
   console.log("itemsScanning -:", itemsScanning);
@@ -302,7 +302,10 @@ const ProductScan = (props) => {
   /* ---------------- delete item ---------------- */
 
   const handleDeleteItem = (itemToDelete) => {
-    console.log("Deleting item:", itemToDelete, scannedDataByFileNew);
+    const dataUpdateSource =
+      itemsScannedProduct[key]?.length > 0
+        ? itemsScannedProduct[key]
+        : itemsScanning?.data;
     Alert.alert("Delete Item", "Are you sure you want to delete this scan?", [
       {
         text: "Cancel",
@@ -316,6 +319,26 @@ const ProductScan = (props) => {
           const updated = scannedDataLocal.filter(
             (item) => item.id !== itemToDelete.id,
           );
+
+          const updatedSource = dataUpdateSource.map((item) => {
+            if (item.Material === itemToDelete.Material) {
+              return {
+                ...item,
+                Scanned_Qty: 0,
+                Diff_Qty: 0,
+                packed_qty: 0,
+                Packed_Diff_Qty: 0, // optional if you also want to reset this
+              };
+            }
+
+            return item;
+          });
+          const delivery = itemsScanning?.data[0]?.Delivery;
+          const scannedProductPayload = {
+            data: updatedSource,
+            fileName: delivery,
+          };
+          dispatch(setitemsScannedProduct(scannedProductPayload));
           // find which file key (eg "BX-002") contains this item
           const fileEntries = packingDataByFile || {};
           let targetFileKey = null;
@@ -413,7 +436,10 @@ const ProductScan = (props) => {
       return acc;
     }, {});
 
-    const dataUpdateSource= itemsScannedProduct[key]?.length > 0 ? itemsScannedProduct[key] : itemsScanning?.data;
+    const dataUpdateSource =
+      itemsScannedProduct[key]?.length > 0
+        ? itemsScannedProduct[key]
+        : itemsScanning?.data;
     const updatedData = dataUpdateSource.map((item) => {
       if (scannedMap[item.Material] != null) {
         return {
@@ -435,7 +461,7 @@ const ProductScan = (props) => {
       data: updatedData,
       fileName: delivery,
     };
-    console.log("scannedProductPayload ----", scannedProductPayload);
+    console.log("scannedProductPayload ----", payload);
     dispatch(setitemsScannedProduct(scannedProductPayload));
     await dispatch(saveProductScans(payload))
       .unwrap()
@@ -471,7 +497,7 @@ const ProductScan = (props) => {
   };
 
   /* ---------------- render row ---------------- */
-
+  console.log("scannedProduct local ----", scannedDataLocal);
   const renderRow = ({ item }) => {
     const icon = statusIcon(item.status);
 
@@ -600,13 +626,11 @@ const ProductScan = (props) => {
                     backgroundColor:
                       itemsScannedProduct[key]?.length > 0
                         ? "#166534"
-                    : "#e5e7eb",
+                        : "#e5e7eb",
                   },
                 ]}
                 onPress={
-                  itemsScannedProduct[key]?.length > 0
-                    ? onScanPress
-                    : undefined
+                  itemsScannedProduct[key]?.length > 0 ? onScanPress : undefined
                 }
               >
                 <Text style={s.forwardText}>Move forward</Text>
