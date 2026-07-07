@@ -46,13 +46,11 @@ const PackingScan = (props) => {
 
   const { scannedDataByFile, packingDataByFile, scannedDataByFileNew, itemsScannedProduct } =
     useSelector(selectOutBound);
-  console.log("PackingScan - props?.route?.params:", props?.route?.params);
   const sourceFileName = props?.route?.params?.fileName; // outbound
   const targetFileName = props?.route?.params?.file; // packing
 
   const sourceKey = normalizeFileName(sourceFileName);
   const targetKey = normalizeFileName(sourceFileName + targetFileName);
-
   const sourceData = scannedDataByFileNew[sourceKey] || [];
   const reduxPackingData = packingDataByFile[targetKey] || [];
 
@@ -69,10 +67,23 @@ const PackingScan = (props) => {
   /* ---------------- redux → local sync (SAFE) ---------------- */
 
   useEffect(() => {
-    console.log("Syncing packing data for key:", reduxPackingData);
-    setPackingLocal(reduxPackingData);
-  }, [targetKey]); // 👈 important
+    const sourceMap = new Map(
+  sourceData.map(item => [item.Material, item])
+);
 
+const updatedReduxPackingData = reduxPackingData.map(item => {
+  const sourceItem = sourceMap.get(item.Material);
+
+  return sourceItem && sourceItem.Scanned_Qty !== item.Scanned_Qty
+    ? {
+        ...item,
+        Scanned_Qty: sourceItem.Scanned_Qty,
+        status: 'partial'
+      }
+    : item;
+});
+    setPackingLocal(updatedReduxPackingData);
+  }, [scannedDataByFileNew, packingDataByFile]); // 👈 important
   /* ---------------- QR scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
  useEffect(() => {
     soundRef.current = new Sound(
@@ -208,6 +219,7 @@ const PackingScan = (props) => {
       newPacked >= existing.Scanned_Qty
         ? "done"
         : "partial";
+      console.log("status ---", status);
 
     updated = packingLocal.map(
       (item, i) =>
