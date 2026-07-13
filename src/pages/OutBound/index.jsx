@@ -8,13 +8,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import Feather from 'react-native-vector-icons/Feather';
 import { fetchOutBoundFiles, selectOutBound, fetchFileDetails, resetOutBoundState } from '../../services/redux/slice/outBoundSlice';
 
-const data = [
-  { id: "1", title: "File Name 1", buttonLabel: "Scan" },
-  { id: "2", title: "File Name 2", buttonLabel: "Scan" },
-  { id: "3", title: "File Name 3", buttonLabel: "Scan" },
-  { id: "4", title: "File Name 4", buttonLabel: "Scan" },
-];
-
 const OutBound = (props) => {
   const screenContext = useScreenContext();
   const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
@@ -36,7 +29,7 @@ const onScanPress = (fileName) => {
   props.navigation.navigate('DeliveryCodes', { fileName: fileName });
 };
   const renderItem = ({ item, index }) => (
-    <View style={[screenStyles.row, index === data.length - 1 && { borderBottomWidth: 0 }]}>
+    <View style={[screenStyles.row, index === items?.files?.length - 1 && { borderBottomWidth: 0 }]}>
       <View style={screenStyles.leftCell}>
         <Text style={screenStyles.itemText}>{item.filename}</Text>
       </View>
@@ -50,7 +43,6 @@ const onScanPress = (fileName) => {
       </View>
     </View>
   );
-
   return (
     <View style={screenStyles.container}>
       <Image source={require('../../assets/vstar.png')} style={screenStyles.logo} />
@@ -66,7 +58,7 @@ const onScanPress = (fileName) => {
           data={items?.files}
           keyExtractor={(i) => i.id}
           renderItem={renderItem}
-          scrollEnabled={false}
+          scrollEnabled={true}
         />
       </View>
     </View>

@@ -80,6 +80,7 @@ useEffect(() => {
                         </View>
                     )}
                     style={{ width: "95%", flex: 1 }}
+                    scrollEnabled={true}
                     contentContainerStyle={{ paddingBottom: 20 }}
                 />
             </View>

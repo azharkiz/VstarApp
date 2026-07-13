@@ -593,7 +593,8 @@ onPress: () => {
                 data={packingLocal}
                 keyExtractor={(i) => i.id || i.title}
                 renderItem={renderRow}
-               showsVerticalScrollIndicator
+                scrollEnabled={true}
+                showsVerticalScrollIndicator
               />
             </View>
             <TouchableOpacity style={s.forwardBtn} onPress={onScanPress}>

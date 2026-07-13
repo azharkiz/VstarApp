@@ -190,6 +190,7 @@ useEffect(() => {
           data={boxes}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          scrollEnabled={true}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
         />
       </View>

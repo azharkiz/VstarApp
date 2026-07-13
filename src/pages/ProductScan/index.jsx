@@ -597,6 +597,7 @@ const ProductScan = (props) => {
                 data={scannedDataLocal}
                 keyExtractor={(i) => i.id}
                 renderItem={renderRow}
+                scrollEnabled={true}
               />
             </View>
 
