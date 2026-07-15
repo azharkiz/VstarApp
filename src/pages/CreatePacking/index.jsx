@@ -44,54 +44,47 @@ const CreatePacking = (props) => {
   const rawFileName = fileName ?? fileNameFromParams;
   const key = normalizeFileName(rawFileName);
   const productFileName = normalizeFileName(props.route.params?.productName);
-    const [boxes, setBoxes] = useState(() => {
-    if (!BoxList || Array.isArray(BoxList)) return [];
-    return BoxList[key] || [];
-  });
+const boxes = React.useMemo(() => {
+  if (!BoxList || Array.isArray(BoxList)) return [];
+  return BoxList[key] || [];
+}, [BoxList, key]); 
 
-  const handleAddBox = () => {
-    const name = boxName.trim();
-    if (!name) return;
+ const handleAddBox = () => {
+  const name = boxName.trim();
 
-    // prevent duplicates (case-insensitive)
-    if (
-      (boxes || []).some(
-        (b) => (b.label || "").trim().toLowerCase() === name.toLowerCase(),
-      )
-    ) {
-      Alert.alert("Duplicate box", "A box with this name already exists.");
-      return;
-    }
+  if (!name) return;
 
-    setBoxes((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        label: name,
-      },
-    ]);
-
-    setBoxName("");
-    setShowModal(false);
-  };
-
-
-useEffect(() => {
-  const reduxBoxes = (BoxList && !Array.isArray(BoxList) && BoxList[key]) || [];
-  try {
-    const localStr = JSON.stringify(boxes || []);
-    const reduxStr = JSON.stringify(reduxBoxes || []);
-    if (localStr !== reduxStr && key) {
-      dispatch(setBoxList({ fileName: key, data: boxes }));
-    }
-  } catch (e) {
-    if (key) {
-      dispatch(setBoxList({ fileName: key, data: boxes }));
-    }
+  if (
+    boxes.some(
+      box => box.label.trim().toLowerCase() === name.toLowerCase(),
+    )
+  ) {
+    Alert.alert("Duplicate box", "A box with this name already exists.");
+    return;
   }
-}, [boxes, BoxList, key, dispatch]);
 
-  const handleBoxPress = async(box) => {
+  const updatedBoxes = [
+    ...boxes,
+    {
+      id: Date.now().toString(),
+      label: name,
+    },
+  ];
+
+  dispatch(
+    setBoxList({
+      fileName: key,
+      data: updatedBoxes,
+    }),
+  );
+
+  setBoxName("");
+  setShowModal(false);
+};
+
+
+
+  const handleBoxPress = React.useCallback(async (box) => {
     // Navigate to the box details screen or perform any action
   const action = dispatch(
       setProductScanDetails({
@@ -125,8 +118,8 @@ useEffect(() => {
       boxName: box.label,
       productDetails: resolvedFileName,
     });
-  };
- const onScanPress = () => {
+  }, [dispatch, props.route.params, productFileName]);
+const onScanPress = React.useCallback(async () => {
   const baseKey = normalizeFileName(localProductDetails?.fileName || "");
   // produce an object like { DED0116059BX-002: [...], ... } keeping arrays intact
   const items = Object.fromEntries(
@@ -176,13 +169,24 @@ const modifiedItems = Object.fromEntries(
           );
         }, 0);
       });
-  };
-  const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.row} onPress={() => handleBoxPress(item)}>
+ }, [
+    dispatch,
+    packingDataByFile,
+    localProductDetails,
+    itemsScannedProduct,
+]);
+ const renderItem = React.useCallback(
+  ({ item }) => (
+    <TouchableOpacity
+      style={styles.row}
+      onPress={() => handleBoxPress(item)}
+    >
       <Text style={styles.rowText}>{item.label}</Text>
       <Ionicons name="arrow-forward" size={20} color="#444" />
     </TouchableOpacity>
-  );
+  ),
+  [handleBoxPress],
+);
  const baseKey = normalizeFileName(localProductDetails?.fileName || "");
   const entries = Object.entries(packingDataByFile || {}).filter(([k]) =>
     String(k).startsWith(baseKey),
@@ -195,7 +199,7 @@ const firstMatchKey = entries[0]?.[0];
 const firstValue = firstMatchKey ? dataScanned[firstMatchKey] : undefined;
 
 const firstMatchLength = entries.length // array-like (has length)
-   console.log("firstMatchLength", entries);
+console.log("firstMatchLength ----");
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -221,7 +225,6 @@ const firstMatchLength = entries.length // array-like (has length)
           data={boxes}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          scrollEnabled={true}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
         />
       </View>
