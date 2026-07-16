@@ -1,94 +1,159 @@
-// ...existing code...
-import React,{ useCallback, useEffect} from "react";
-import { View, Text, Image, TouchableOpacity, FlatList } from "react-native";
+import React, { useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  FlatList,
+} from "react-native";
+import Feather from "react-native-vector-icons/Feather";
+import { useDispatch, useSelector } from "react-redux";
+
 import { useScreenContext } from "../../services/Context";
-import { useLinkProps } from "@react-navigation/native";
 import { Colors } from "../../thems/Colors";
-import { useDispatch, useSelector } from 'react-redux';
-import Feather from 'react-native-vector-icons/Feather';
-import { fetchOutBoundFiles, selectOutBound, fetchFileDetails, resetOutBoundState } from '../../services/redux/slice/outBoundSlice';
+import {
+  fetchOutBoundFiles,
+  selectOutBound,
+} from "../../services/redux/slice/outBoundSlice";
 
 const OutBound = (props) => {
   const screenContext = useScreenContext();
-  const width = screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
-  const height = screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
+
+  const width = screenContext[
+    screenContext.isPortrait ? "windowWidth" : "windowHeight"
+  ];
+
+  const height = screenContext[
+    screenContext.isPortrait ? "windowHeight" : "windowWidth"
+  ];
+
   const screenStyles = styles(screenContext, width, height);
+
   const dispatch = useDispatch();
-  const { items, status, error } = useSelector(selectOutBound);
- 
+
+  const { items } = useSelector(selectOutBound);
+
   const load = useCallback(() => {
     dispatch(fetchOutBoundFiles());
-    // dispatch(resetOutBoundState());
   }, [dispatch]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-const onScanPress = (fileName) => {
-  props.navigation.navigate('DeliveryCodes', { fileName: fileName });
-};
+  const onScanPress = (fileName) => {
+    props.navigation.navigate("DeliveryCodes", {
+      fileName,
+    });
+  };
+
   const renderItem = ({ item, index }) => (
-    <View style={[screenStyles.row, index === items?.files?.length - 1 && { borderBottomWidth: 0 }]}>
+    <View
+      style={[
+        screenStyles.row,
+        index === (items?.files?.length || 0) - 1 && {
+          borderBottomWidth: 0,
+        },
+      ]}
+    >
       <View style={screenStyles.leftCell}>
         <Text style={screenStyles.itemText}>{item.filename}</Text>
       </View>
 
       <View style={screenStyles.rightCell}>
-        <TouchableOpacity style={screenStyles.scanButton} onPress={() => {
-          onScanPress(item.filename);
-        }}>
-          <Text style={screenStyles.scanButtonText}>{item.buttonLabel}</Text>
+        <TouchableOpacity
+          style={screenStyles.scanButton}
+          onPress={() => onScanPress(item.filename)}
+        >
+          <Text style={screenStyles.scanButtonText}>
+            {item.buttonLabel}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
+
   return (
     <View style={screenStyles.container}>
-      <Image source={require('../../assets/vstar.png')} style={screenStyles.logo} />
+      <Image
+        source={require("../../assets/vstar.png")}
+        style={screenStyles.logo}
+      />
 
       <View style={screenStyles.refreshView}>
-        <TouchableOpacity style={screenStyles.scanButton} onPress={load}>
-          <Feather name="refresh-cw" size={20} color={Colors.name.black} />
+        <TouchableOpacity
+          style={screenStyles.refreshButton}
+          onPress={load}
+        >
+          <Feather
+            name="refresh-cw"
+            size={20}
+            color={Colors.name.black}
+          />
         </TouchableOpacity>
       </View>
 
       <View style={screenStyles.listWrapper}>
         <FlatList
-          data={items?.files}
-          keyExtractor={(i) => i.id}
+          style={{ flex: 1 }}
+          data={items?.files ?? []}
+          keyExtractor={(item, index) =>
+            item?.id
+              ? item.id.toString()
+              : `${item.filename}-${index}`
+          }
           renderItem={renderItem}
-          scrollEnabled={true}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={screenStyles.listContent}
         />
       </View>
     </View>
-
   );
 };
 
 const styles = (screenContext, width, height) => ({
   container: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     paddingVertical: 20,
-    // backgroundColor: Colors.name.darkBlue,
+    backgroundColor: "#fff",
+  },
+
+  logo: {
+    width: 120,
+    height: 120,
+    resizeMode: "contain",
+    marginBottom: 20,
   },
 
   refreshView: {
-    width: width * 0.5,
+    width: Math.min(width * 0.95, 420),
     alignItems: "flex-end",
-    marginBottom: height * 0.02,
-    marginLeft: width * 0.3,
+    marginBottom: 15,
+  },
+
+  refreshButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F5F5F5",
+    borderWidth: 1,
+    borderColor: "#DDD",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   listWrapper: {
+    flex: 1,
     width: Math.min(width * 0.95, 420),
     borderWidth: 1,
-    borderColor: "#ececec",
+    borderColor: "#ECECEC",
     borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: "#fff",
+    backgroundColor: "#FFF",
+  },
+
+  listContent: {
+    paddingBottom: 20,
   },
 
   row: {
@@ -97,8 +162,8 @@ const styles = (screenContext, width, height) => ({
     paddingVertical: 18,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
-    backgroundColor: "#fff",
+    borderBottomColor: "#F0F0F0",
+    backgroundColor: "#FFF",
   },
 
   leftCell: {
@@ -112,7 +177,7 @@ const styles = (screenContext, width, height) => ({
     alignItems: "center",
     justifyContent: "center",
     borderLeftWidth: 1,
-    borderLeftColor: "#f0f0f0",
+    borderLeftColor: "#F0F0F0",
     paddingLeft: 12,
   },
 
@@ -122,31 +187,19 @@ const styles = (screenContext, width, height) => ({
   },
 
   scanButton: {
-    backgroundColor: Colors.name.VstarRed || "#e31717",
+    backgroundColor: Colors.name.VstarRed || "#E31717",
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 10,
     minWidth: 100,
-    alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
-    shadowRadius: 1,
-    elevation: 2,
+    alignItems: "center",
   },
 
   scanButtonText: {
-    color: "#fff",
+    color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
-  },
-
-  logo: {
-    width: 120,
-    height: 120,
-    resizeMode: "contain",
-    marginBottom: 18,
   },
 });
 

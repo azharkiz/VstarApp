@@ -199,7 +199,7 @@ const firstMatchKey = entries[0]?.[0];
 const firstValue = firstMatchKey ? dataScanned[firstMatchKey] : undefined;
 
 const firstMatchLength = entries.length // array-like (has length)
-console.log("firstMatchLength ----");
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -226,13 +226,20 @@ console.log("firstMatchLength ----");
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
+         contentContainerStyle={{ paddingBottom: 100 }}
+      
         />
       </View>
-      {firstMatchLength >=1 && (
-        <TouchableOpacity style={styles.forwardBtn} onPress={onScanPress}>
-          <Text style={styles.forwardText}>Online Submit</Text>
-        </TouchableOpacity>
-      )}
+       {firstMatchLength >= 1 && (
+    <View style={styles.bottomContainer}>
+      <TouchableOpacity
+        style={styles.forwardBtn}
+        onPress={onScanPress}
+      >
+        <Text style={styles.forwardText}>Online Submit</Text>
+      </TouchableOpacity>
+    </View>
+  )}
 
       {/* 🔹 Add Box Popup */}
       <Modal
@@ -291,12 +298,13 @@ const styles = StyleSheet.create({
   addText: { fontSize: 12, marginTop: -4 },
 
   card: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    overflow: "hidden",
+     flex: 1,
+  marginHorizontal: 16,
+  marginTop: 20,
+  borderWidth: 1,
+  borderColor: "#e5e7eb",
+  borderRadius: 12,
+  overflow: "hidden",
   },
 
   row: {
@@ -356,15 +364,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   saveText: { color: "#fff", fontWeight: "600" },
-  forwardBtn: {
-    marginTop: 20,
-    marginRight: 18,
-    alignSelf: "flex-end",
-    backgroundColor: "#166534",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
+ bottomContainer: {
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  backgroundColor: "#fff",
+  borderTopWidth: 1,
+  borderTopColor: "#e5e7eb",
+},
+
+forwardBtn: {
+  alignSelf: "flex-end",
+  backgroundColor: "#166534",
+  paddingHorizontal: 18,
+  paddingVertical: 12,
+  borderRadius: 8,
+},
 
   forwardText: { color: "#fff", fontWeight: "700" },
 });

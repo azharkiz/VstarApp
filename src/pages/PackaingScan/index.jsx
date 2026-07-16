@@ -593,7 +593,6 @@ onPress: () => {
                 data={packingLocal}
                 keyExtractor={(i) => i.id || i.title}
                 renderItem={renderRow}
-                scrollEnabled={true}
                 showsVerticalScrollIndicator
               />
             </View>

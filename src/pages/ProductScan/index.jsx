@@ -535,7 +535,7 @@ const ProductScan = (props) => {
   };
 
   /* ---------------- UI ---------------- */
-
+console.log("scannedDataLocal ----", JSON.stringify(scannedDataLocal));
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView
@@ -597,7 +597,6 @@ const ProductScan = (props) => {
                 data={scannedDataLocal}
                 keyExtractor={(i) => i.id}
                 renderItem={renderRow}
-                scrollEnabled={true}
               />
             </View>
 
