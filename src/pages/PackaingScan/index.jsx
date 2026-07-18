@@ -48,15 +48,15 @@ const PackingScan = (props) => {
     useSelector(selectOutBound);
   const sourceFileName = props?.route?.params?.fileName; // outbound
   const targetFileName = props?.route?.params?.file; // packing
-
   const sourceKey = normalizeFileName(sourceFileName);
   const targetKey = normalizeFileName(sourceFileName + targetFileName);
   const sourceData = scannedDataByFileNew[sourceKey] || [];
-  const reduxPackingData = packingDataByFile[targetKey] || [];
+  // const reduxPackingData = packingDataByFile[targetKey] || [];
 
   const [qrcode, setQrcode] = useState("");
   const [packingLocal, setPackingLocal] = useState([]);
   const [blockedMaterials, setBlockedMaterials] = useState([]);
+  const [reduxPackingData, setReduxPackingData] = useState([]);
 
   const width =
     screenContext[screenContext.isPortrait ? "windowWidth" : "windowHeight"];
@@ -64,26 +64,31 @@ const PackingScan = (props) => {
     screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(width, height);
 
+useEffect(() => {
+  const materialTotals = {};
+
+  Object.values(packingDataByFile)
+    .flat()
+    .forEach(item => {
+      materialTotals[item.Material] =
+        (materialTotals[item.Material] || 0) + Number(item.packed || 0);
+    });
+
+  const updated = (packingDataByFile[targetKey] || []).map(item => ({
+    ...item,
+    remainingQty: Math.max(
+      0,
+      Number(item.Scanned_Qty) - (materialTotals[item.Material] || 0)
+    ),
+  }));
+
+  setReduxPackingData(updated);
+}, [packingDataByFile, targetKey]);
   /* ---------------- redux → local sync (SAFE) ---------------- */
 
-  useEffect(() => {
-    const sourceMap = new Map(
-  sourceData.map(item => [item.Material, item])
-);
-
-const updatedReduxPackingData = reduxPackingData.map(item => {
-  const sourceItem = sourceMap.get(item.Material);
-
-  return sourceItem && sourceItem.Scanned_Qty !== item.Scanned_Qty
-    ? {
-        ...item,
-        Scanned_Qty: sourceItem.Scanned_Qty,
-        status: 'partial'
-      }
-    : item;
-});
-    setPackingLocal(updatedReduxPackingData);
-  }, [scannedDataByFileNew, packingDataByFile]); // 👈 important
+ useEffect(() => {
+  setPackingLocal(reduxPackingData);
+}, [reduxPackingData]);// 👈 important
   /* ---------------- QR scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
  useEffect(() => {
     soundRef.current = new Sound(
@@ -192,86 +197,121 @@ const updatedReduxPackingData = reduxPackingData.map(item => {
     (i) => i.Material === material,
   );
 
-  if (index > -1) {
-    const existing = packingLocal[index];
+if (index > -1) {
+  const existing = packingLocal[index];
 
-    const newPacked =
-      (existing.packed || 0) + scannedQty;
+  const remainingQty =
+    existing.remainingQty !== undefined
+      ? Number(existing.remainingQty)
+      : Number(existing.Scanned_Qty) - Number(existing.packed || 0);
 
-    /* prevent over packing */
+  console.log("remainingQty", remainingQty, existing);
 
-    if (newPacked > existing.Scanned_Qty) {
-      playSound();
+  // Already fully packed
+  if (remainingQty <= 0) {
+    playSound();
 
-      showAlert(
-        "Packed quantity exceeds scanned quantity",
-        `Remaining quantity: ${
-          existing.Scanned_Qty -
-          existing.packed
-        }`,
-      );
-
-      setQrcode("");
-      return;
-    }
-
-    const status =
-      newPacked >= existing.Scanned_Qty
-        ? "done"
-        : "partial";
-      console.log("status ---", status);
-
-    updated = packingLocal.map(
-      (item, i) =>
-        i === index
-          ? {
-              ...item,
-              packed: newPacked,
-              status,
-            }
-          : item,
+    showAlert(
+      "Packing completed",
+      "No remaining quantity available for this material"
     );
 
-    if (status === "done") {
-      setBlockedMaterials((p) => [
-        ...new Set([...p, material]),
-      ]);
-    }
-  } else {
-    /* prevent first scan overflow */
-
-    if (scannedQty > matched.Scanned_Qty) {
-      playSound();
-
-      showAlert(
-        "Packed quantity exceeds scanned quantity",
-        `Allowed quantity: ${matched.Scanned_Qty}`,
-      );
-
-      setQrcode("");
-      return;
-    }
-
-    const status =
-      scannedQty >= matched.Scanned_Qty
-        ? "done"
-        : "partial";
-
-    updated = [
-      ...packingLocal,
-      {
-        ...matched,
-        packed: scannedQty,
-        status,
-      },
-    ];
-
-    if (status === "done") {
-      setBlockedMaterials((p) => [
-        ...new Set([...p, material]),
-      ]);
-    }
+    setQrcode("");
+    return;
   }
+
+  // Prevent over packing
+  if (Number(scannedQty) > remainingQty) {
+    playSound();
+
+    showAlert(
+      "Packed quantity exceeds remaining quantity",
+      `Remaining quantity: ${remainingQty}`
+    );
+
+    setQrcode("");
+    return;
+  }
+
+  const newPacked =
+    Number(existing.packed || 0) + Number(scannedQty);
+
+  const newRemainingQty =
+    Math.max(0, remainingQty - Number(scannedQty));
+
+
+  const status =
+    newRemainingQty === 0
+      ? "done"
+      : "partial";
+
+  console.log("newPacked", newPacked);
+  console.log("newRemainingQty", newRemainingQty);
+  console.log("status", status);
+
+
+  updated = packingLocal.map((item, i) =>
+    i === index
+      ? {
+          ...item,
+          packed: newPacked,
+          remainingQty: newRemainingQty,
+          status,
+        }
+      : item
+  );
+
+
+  if (status === "done") {
+    setBlockedMaterials((prev) => [
+      ...new Set([...prev, material]),
+    ]);
+  }
+
+} else {
+  // First scan
+  const allowedQty = Number(matched.Scanned_Qty);
+
+  if (Number(scannedQty) > allowedQty) {
+    playSound();
+
+    showAlert(
+      "Packed quantity exceeds scanned quantity",
+      `Allowed quantity: ${allowedQty}`
+    );
+
+    setQrcode("");
+    return;
+  }
+
+
+  const remainingQty =
+    Math.max(0, allowedQty - Number(scannedQty));
+
+
+  const status =
+    remainingQty === 0
+      ? "done"
+      : "partial";
+
+
+  updated = [
+    ...packingLocal,
+    {
+      ...matched,
+      packed: Number(scannedQty),
+      remainingQty,
+      status,
+    },
+  ];
+
+
+  if (status === "done") {
+    setBlockedMaterials((prev) => [
+      ...new Set([...prev, material]),
+    ]);
+  }
+}
 
   /* ---------------- update packed items redux ---------------- */
 
@@ -461,7 +501,7 @@ onPress: () => {
         ]}
       >
         <Text style={s.cellText}>
-          {item.Scanned_Qty}
+          {item.remainingQty ?? item.Scanned_Qty}
         </Text>
       </View>
 
