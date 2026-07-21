@@ -44,8 +44,12 @@ const PackingScan = (props) => {
   const soundRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const { scannedDataByFile, packingDataByFile, scannedDataByFileNew, itemsScannedProduct } =
-    useSelector(selectOutBound);
+  const {
+    scannedDataByFile,
+    packingDataByFile,
+    scannedDataByFileNew,
+    itemsScannedProduct,
+  } = useSelector(selectOutBound);
   const sourceFileName = props?.route?.params?.fileName; // outbound
   const targetFileName = props?.route?.params?.file; // packing
   const sourceKey = normalizeFileName(sourceFileName);
@@ -64,33 +68,33 @@ const PackingScan = (props) => {
     screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(width, height);
 
-useEffect(() => {
-  const materialTotals = {};
+  useEffect(() => {
+    const materialTotals = {};
 
-  Object.values(packingDataByFile)
-    .flat()
-    .forEach(item => {
-      materialTotals[item.Material] =
-        (materialTotals[item.Material] || 0) + Number(item.packed || 0);
-    });
+    Object.values(packingDataByFile)
+      .flat()
+      .forEach((item) => {
+        materialTotals[item.Material] =
+          (materialTotals[item.Material] || 0) + Number(item.packed || 0);
+      });
 
-  const updated = (packingDataByFile[targetKey] || []).map(item => ({
-    ...item,
-    remainingQty: Math.max(
-      0,
-      Number(item.Scanned_Qty) - (materialTotals[item.Material] || 0)
-    ),
-  }));
+    const updated = (packingDataByFile[targetKey] || []).map((item) => ({
+      ...item,
+      remainingQty: Math.max(
+        0,
+        Number(item.Scanned_Qty) - (materialTotals[item.Material] || 0),
+      ),
+    }));
 
-  setReduxPackingData(updated);
-}, [packingDataByFile, targetKey]);
+    setReduxPackingData(updated);
+  }, [packingDataByFile, targetKey]);
   /* ---------------- redux → local sync (SAFE) ---------------- */
 
- useEffect(() => {
-  setPackingLocal(reduxPackingData);
-}, [reduxPackingData]);// 👈 important
+  useEffect(() => {
+    setPackingLocal(reduxPackingData);
+  }, [reduxPackingData]); // 👈 important
   /* ---------------- QR scan logic (SINGLE SOURCE OF TRUTH) ---------------- */
- useEffect(() => {
+  useEffect(() => {
     soundRef.current = new Sound(
       "beepwarning.mp3", // place file inside ios main bundle / android raw folder
       Sound.MAIN_BUNDLE,
@@ -129,254 +133,221 @@ useEffect(() => {
     setIsPlaying(false);
   };
   useEffect(() => {
-  if (!qrcode || !targetKey) return;
+    if (!qrcode || !targetKey) return;
+    const parts = qrcode.split("_");
 
-  const parts = qrcode.split("_");
+    const material = parts[0]?.trim();
+    const scannedQtyRaw = parts[1]?.trim();
 
-  const material = parts[0]?.trim();
-  const scannedQtyRaw = parts[1]?.trim();
+    /* ---------------- validate QR ---------------- */
 
-  /* ---------------- validate QR ---------------- */
-
-  if (!material || !scannedQtyRaw) {
-    showAlert("Invalid QR format");
-    setQrcode("");
-    return;
-  }
-
-  /* ---------------- already completed ---------------- */
-
-  if (
-    blockedMaterials.includes(material) ||
-    packingLocal.some(
-      (i) =>
-        i.Material === material &&
-        i.status === "done",
-    )
-  ) {
-    playSound();
-
-    setTimeout(() => {
-      showAlert("Item already completed");
-    }, 200);
-
-    setQrcode("");
-    return;
-  }
-
-  /* ---------------- validate quantity ---------------- */
-
-  const scannedQty = Number(scannedQtyRaw);
-
-  if (
-    Number.isNaN(scannedQty) ||
-    scannedQty <= 0
-  ) {
-    showAlert("Invalid quantity");
-    setQrcode("");
-    return;
-  }
-
-  /* ---------------- source material check ---------------- */
-
-  const matched = sourceData.find(
-    (i) => i.Material === material,
-  );
-
-  if (!matched) {
-    showAlert("Material not found");
-    setQrcode("");
-    return;
-  }
-
-  /* ---------------- packing logic ---------------- */
-
-  let updated;
-
-  const index = packingLocal.findIndex(
-    (i) => i.Material === material,
-  );
-
-if (index > -1) {
-  const existing = packingLocal[index];
-
-  const remainingQty =
-    existing.remainingQty !== undefined
-      ? Number(existing.remainingQty)
-      : Number(existing.Scanned_Qty) - Number(existing.packed || 0);
-
-  console.log("remainingQty", remainingQty, existing);
-
-  // Already fully packed
-  if (remainingQty <= 0) {
-    playSound();
-
-    showAlert(
-      "Packing completed",
-      "No remaining quantity available for this material"
-    );
-
-    setQrcode("");
-    return;
-  }
-
-  // Prevent over packing
-  if (Number(scannedQty) > remainingQty) {
-    playSound();
-
-    showAlert(
-      "Packed quantity exceeds remaining quantity",
-      `Remaining quantity: ${remainingQty}`
-    );
-
-    setQrcode("");
-    return;
-  }
-
-  const newPacked =
-    Number(existing.packed || 0) + Number(scannedQty);
-
-  const newRemainingQty =
-    Math.max(0, remainingQty - Number(scannedQty));
-
-
-  const status =
-    newRemainingQty === 0
-      ? "done"
-      : "partial";
-
-  console.log("newPacked", newPacked);
-  console.log("newRemainingQty", newRemainingQty);
-  console.log("status", status);
-
-
-  updated = packingLocal.map((item, i) =>
-    i === index
-      ? {
-          ...item,
-          packed: newPacked,
-          remainingQty: newRemainingQty,
-          status,
-        }
-      : item
-  );
-
-
-  if (status === "done") {
-    setBlockedMaterials((prev) => [
-      ...new Set([...prev, material]),
-    ]);
-  }
-
-} else {
-  // First scan
-  const allowedQty = Number(matched.Scanned_Qty);
-
-  if (Number(scannedQty) > allowedQty) {
-    playSound();
-
-    showAlert(
-      "Packed quantity exceeds scanned quantity",
-      `Allowed quantity: ${allowedQty}`
-    );
-
-    setQrcode("");
-    return;
-  }
-
-
-  const remainingQty =
-    Math.max(0, allowedQty - Number(scannedQty));
-
-
-  const status =
-    remainingQty === 0
-      ? "done"
-      : "partial";
-
-
-  updated = [
-    ...packingLocal,
-    {
-      ...matched,
-      packed: Number(scannedQty),
-      remainingQty,
-      status,
-    },
-  ];
-
-
-  if (status === "done") {
-    setBlockedMaterials((prev) => [
-      ...new Set([...prev, material]),
-    ]);
-  }
-}
-
-  /* ---------------- update packed items redux ---------------- */
-
-const existingItems = Array.isArray(
-  itemsScannedProduct?.[sourceKey],
-)
-  ? itemsScannedProduct[sourceKey]
-  : [];
-
-/* total packed qty for current material */
-const totalPackedQty =
-  packingLocal
-    .filter(
-      (item) => item.Material === material,
-    )
-    .reduce(
-      (sum, item) =>
-        sum + Number(item.packed || 0),
-      0,
-    ) + scannedQty;
-
-/* update existing items */
-const updateItemsScanned =
-  existingItems.map((item) => {
-    if (item.Material === material) {
-      return {
-        ...item,
-        packed_qty: totalPackedQty,
-        Packed_Diff_Qty:
-          Number(item.Scanned_Qty || 0) -
-          totalPackedQty,
-      };
+    if (!material || !scannedQtyRaw) {
+      showAlert("Invalid QR format");
+      setQrcode("");
+      return;
     }
 
-    return item;
-  });
-/* dispatch */
-dispatch(
-  setitemsScannedProduct({
-    fileName: sourceKey,
-    data: updateItemsScanned,
-  }),
-);
+    /* ---------------- already completed ---------------- */
 
-  // dispatch(
-  //   setitemsScannedProduct(
-  //     scannedProductPayload,
-  //   ),
-  // );
+    if (
+      blockedMaterials.includes(material) ||
+      packingLocal.some((i) => i.Material === material && i.status === "done")
+    ) {
+      playSound();
 
-  /* ---------------- update packing redux ---------------- */
+      setTimeout(() => {
+        showAlert("Item already completed");
+      }, 200);
 
-  setPackingLocal(updated);
+      setQrcode("");
+      return;
+    }
 
-  dispatch(
-    setPackingData({
-      fileName: targetKey,
-      data: updated,
-    }),
-  );
+    /* ---------------- validate quantity ---------------- */
 
-  /* ---------------- reset input ---------------- */
+    const scannedQty = Number(scannedQtyRaw);
 
-  setQrcode("");
-}, [qrcode]);
+    if (Number.isNaN(scannedQty) || scannedQty <= 0) {
+      showAlert("Invalid quantity");
+      setQrcode("");
+      return;
+    }
+
+    /* ---------------- source material check ---------------- */
+
+    const matched = sourceData.find((i) => i.Material === material);
+    console.log("Scanned QR:--", sourceData);
+    if (!matched) {
+      showAlert("Material not found");
+      setQrcode("");
+      return;
+    }
+
+    /* ---------------- packing logic ---------------- */
+
+    let updated;
+
+    const index = packingLocal.findIndex((i) => i.Material === material);
+
+    if (index > -1) {
+      const existing = packingLocal[index];
+      const totalPackedQty =
+        Object.values(packingDataByFile)
+          .flat()
+          .filter((item) => String(item.Material) === String(material))
+          .reduce((sum, item) => sum + Number(item.packed || 0), 0) +
+        Number(scannedQty);
+      const remainingQty =
+        existing.remainingQty !== undefined
+          ? Number(existing.remainingQty)
+          : Number(existing.Scanned_Qty) - Number(existing.packed || 0);
+
+      // Already fully packed
+      if (remainingQty <= 0) {
+        playSound();
+
+        showAlert(
+          "Packing completed",
+          "No remaining quantity available for this material",
+        );
+
+        setQrcode("");
+        return;
+      }
+
+      // Prevent over packing
+      if (Number(scannedQty) > remainingQty) {
+        playSound();
+
+        showAlert(
+          "Packed quantity exceeds remaining quantity",
+          `Remaining quantity: ${remainingQty}`,
+        );
+
+        setQrcode("");
+        return;
+      }
+
+      const newPacked = Number(existing.packed || 0) + Number(scannedQty);
+
+      const newRemainingQty = Math.max(0, remainingQty - Number(scannedQty));
+
+      const status = newRemainingQty === 0 ? "done" : "partial";
+
+      console.log("newPacked", newPacked);
+      console.log("newRemainingQty", newRemainingQty);
+      console.log("status", status);
+
+      updated = packingLocal.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              // packed: totalPackedQty,
+              packed: newPacked,
+              remainingQty: newRemainingQty,
+              status,
+            }
+          : item,
+      );
+
+      if (status === "done") {
+        setBlockedMaterials((prev) => [...new Set([...prev, material])]);
+      }
+    } else {
+      // First scan
+      const allowedQty = Number(matched.Scanned_Qty);
+
+      if (Number(scannedQty) > allowedQty) {
+        playSound();
+
+        showAlert(
+          "Packed quantity exceeds scanned quantity",
+          `Allowed quantity: ${allowedQty}`,
+        );
+
+        setQrcode("");
+        return;
+      }
+
+      const remainingQty = Math.max(0, allowedQty - Number(scannedQty));
+
+      const status = remainingQty === 0 ? "done" : "partial";
+
+      updated = [
+        ...packingLocal,
+        {
+          ...matched,
+          packed: Number(scannedQty),
+          packedLocal: Number(scannedQty),
+          remainingQty,
+          status,
+        },
+      ];
+
+      if (status === "done") {
+        setBlockedMaterials((prev) => [...new Set([...prev, material])]);
+      }
+    }
+
+    /* ---------------- update packed items redux ---------------- */
+
+    const existingItems = Array.isArray(itemsScannedProduct?.[sourceKey])
+      ? itemsScannedProduct[sourceKey]
+      : [];
+
+    /* total packed qty for current material */
+    // const totalPackedQty =
+    //   packingLocal
+    //     .filter((item) => item.Material === material)
+    //     .reduce((sum, item) => sum + Number(item.packed || 0), 0) + scannedQty;
+    const totalPackedQty =
+      Object.values(packingDataByFile)
+        .flat()
+        .filter((item) => String(item.Material) === String(material))
+        .reduce((sum, item) => sum + Number(item.packed || 0), 0) +
+      Number(scannedQty);
+
+    /* update existing items */
+    const updateItemsScanned = existingItems.map((item) => {
+      if (item.Material === material) {
+        return {
+          ...item,
+          packed_qty: totalPackedQty,
+          Packed_Diff_Qty: Number(item.Scanned_Qty || 0) - totalPackedQty,
+        };
+      }
+
+      return item;
+    });
+    /* dispatch */
+    dispatch(
+      setitemsScannedProduct({
+        fileName: sourceKey,
+        data: updateItemsScanned,
+      }),
+    );
+
+    // dispatch(
+    //   setitemsScannedProduct(
+    //     scannedProductPayload,
+    //   ),
+    // );
+
+    /* ---------------- update packing redux ---------------- */
+
+    setPackingLocal(updated);
+
+    dispatch(
+      setPackingData({
+        fileName: targetKey,
+        data: updated,
+      }),
+    );
+
+    /* ---------------- reset input ---------------- */
+
+    setQrcode("");
+  }, [qrcode]);
   /* ---------------- alert ---------------- */
 
   const showAlert = (title, message = "") => {
@@ -390,7 +361,7 @@ dispatch(
           text: "OK",
           onPress: () => {
             alertShownRef.current = false;
-             stopSound();
+            stopSound();
           },
         },
       ]);
@@ -408,18 +379,19 @@ dispatch(
         fileName: targetKey,
         data: [],
       }),
-       setBoxList({
+      setBoxList({
         fileName: targetKey,
         data: [],
-      })
-   );
+      }),
+    );
   };
 
   const onScanPress = () => {
-    console.log("Navigating to CreatePacking", { ...props.route.params});
-    props.navigation.navigate('CreatePacking', {
+    console.log("Navigating to CreatePacking", { ...props.route.params });
+    props.navigation.navigate("CreatePacking", {
       ...props.route.params,
     });
+
     // props.navigation.dispatch(
     //   CommonActions.reset({
     //     index: 0,
@@ -427,128 +399,108 @@ dispatch(
     //   }),
     // );
   };
-const handleDeleteItem = (itemToDelete) => {
-  Alert.alert(
-    "Delete Item",
-    "Are you sure you want to delete this packed item?",
-    [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        // ...existing code...
-onPress: () => {
-  // remove from packingLocal (per-targetKey)
-  const updated = packingLocal.filter(
-    (item) => item.Material !== itemToDelete.Material,
-  );
-  setPackingLocal(updated);
+  const handleDeleteItem = (itemToDelete) => {
+    Alert.alert(
+      "Delete Item",
+      "Are you sure you want to delete this packed item?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          // ...existing code...
+          onPress: () => {
+            // remove from packingLocal (per-targetKey)
+            const updated = packingLocal.filter(
+              (item) => item.Material !== itemToDelete.Material,
+            );
+            setPackingLocal(updated);
 
-  setBlockedMaterials((prev) => prev.filter((m) => m !== itemToDelete.Material));
+            setBlockedMaterials((prev) =>
+              prev.filter((m) => m !== itemToDelete.Material),
+            );
 
-  // persist packing change for this target file
-  dispatch(
-    setPackingData({
-      fileName: targetKey,
-      data: updated.length ? updated : null, // remove key if array empty
-    }),
-  );
+            // persist packing change for this target file
+            dispatch(
+              setPackingData({
+                fileName: targetKey,
+                data: updated.length ? updated : null, // remove key if array empty
+              }),
+            );
 
-  // also remove from scannedDataNew for the source file (compare Material)
-  const existingSource = Array.isArray(scannedDataByFileNew?.[sourceKey])
-    ? scannedDataByFileNew[sourceKey]
-    : [];
+            // also remove from scannedDataNew for the source file (compare Material)
+            const existingSource = Array.isArray(
+              scannedDataByFileNew?.[sourceKey],
+            )
+              ? scannedDataByFileNew[sourceKey]
+              : [];
 
-  const updatedSource = existingSource.filter(
-    (i) => i.Material !== itemToDelete.Material,
-  );
+            const updatedSource = existingSource.filter(
+              (i) => i.Material !== itemToDelete.Material,
+            );
 
-  dispatch(
-    setScannedDataNew({
-      fileName: sourceKey,
-      data: updatedSource.length ? updatedSource : null, // delete entry if empty
-    }),
-  );
-},
-// ...existing
-      },
-    ],
-  );
-};
+            dispatch(
+              setScannedDataNew({
+                fileName: sourceKey,
+                data: updatedSource.length ? updatedSource : null, // delete entry if empty
+              }),
+            );
+            setTimeout(() => {
+              props.navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: "AdminTab" }],
+                }),
+              );
+            }, 0);
+          },
+          // ...existing
+        },
+      ],
+    );
+  };
   /* ---------------- render row ---------------- */
 
   const renderRow = ({ item, index }) => {
-  const icon = statusIcon(item.status);
+    const icon = statusIcon(item.status);
 
-  return (
-    <View style={s.tableRow}>
-      {/* Product */}
-      <View style={[s.cell, s.colProduct]}>
-        <Text style={s.cellText}>
-          {item.Material}
-        </Text>
+    return (
+      <View style={s.tableRow}>
+        {/* Product */}
+        <View style={[s.cell, s.colProduct]}>
+          <Text style={s.cellText}>{item.Material}</Text>
+        </View>
+
+        {/* Qty */}
+        <View style={[s.cell, s.colCenter, s.colDivider]}>
+          <Text style={s.cellText}>
+            {item.remainingQty ?? item.Scanned_Qty}
+          </Text>
+        </View>
+
+        {/* Packed */}
+        <View style={[s.cell, s.colCenter, s.colDivider]}>
+          <Text style={s.cellText}>{item.packed}</Text>
+        </View>
+
+        {/* Status */}
+        <View style={[s.cell, s.colStatus, s.colDivider]}>
+          <Ionicons name={icon.name} color={icon.color} size={20} />
+        </View>
+
+        {/* Delete */}
+        <TouchableOpacity
+          style={s.deleteBtn}
+          onPress={() => handleDeleteItem(item)}
+        >
+          <Ionicons name="trash-outline" size={20} color="#dc2626" />
+        </TouchableOpacity>
       </View>
-
-      {/* Qty */}
-      <View
-        style={[
-          s.cell,
-          s.colCenter,
-          s.colDivider,
-        ]}
-      >
-        <Text style={s.cellText}>
-          {item.remainingQty ?? item.Scanned_Qty}
-        </Text>
-      </View>
-
-      {/* Packed */}
-      <View
-        style={[
-          s.cell,
-          s.colCenter,
-          s.colDivider,
-        ]}
-      >
-        <Text style={s.cellText}>
-          {item.packed}
-        </Text>
-      </View>
-
-      {/* Status */}
-      <View
-        style={[
-          s.cell,
-          s.colStatus,
-          s.colDivider,
-        ]}
-      >
-        <Ionicons
-          name={icon.name}
-          color={icon.color}
-          size={20}
-        />
-      </View>
-
-      {/* Delete */}
-      <TouchableOpacity
-        style={s.deleteBtn}
-        onPress={() =>
-          handleDeleteItem(item)
-        }
-      >
-        <Ionicons
-          name="trash-outline"
-          size={20}
-          color="#dc2626"
-        />
-      </TouchableOpacity>
-    </View>
-  );
-};
+    );
+  };
 
   return (
     <SafeAreaView style={s.container}>
@@ -579,55 +531,27 @@ onPress: () => {
             </TouchableOpacity>
 
             <View style={s.tableWrap}>
-            <View style={s.tableHeader}>
-  <View style={[s.cell, s.colProduct]}>
-    <Text style={s.headerText}>
-      Product
-    </Text>
-  </View>
+              <View style={s.tableHeader}>
+                <View style={[s.cell, s.colProduct]}>
+                  <Text style={s.headerText}>Product</Text>
+                </View>
 
-  <View
-    style={[
-      s.cell,
-      s.colCenter,
-      s.colDivider,
-    ]}
-  >
-    <Text style={s.headerText}>
-      Qty
-    </Text>
-  </View>
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Qty</Text>
+                </View>
 
-  <View
-    style={[
-      s.cell,
-      s.colCenter,
-      s.colDivider,
-    ]}
-  >
-    <Text style={s.headerText}>
-      Packed
-    </Text>
-  </View>
+                <View style={[s.cell, s.colCenter, s.colDivider]}>
+                  <Text style={s.headerText}>Packed</Text>
+                </View>
 
-  <View
-    style={[
-      s.cell,
-      s.colStatus,
-      s.colDivider,
-    ]}
-  >
-    <Text style={s.headerText}>
-      Status
-    </Text>
-  </View>
+                <View style={[s.cell, s.colStatus, s.colDivider]}>
+                  <Text style={s.headerText}>Status</Text>
+                </View>
 
-  <View style={s.deleteBtn}>
-    <Text style={s.headerText}>
-      Delete
-    </Text>
-  </View>
-</View>
+                <View style={s.deleteBtn}>
+                  <Text style={s.headerText}>Delete</Text>
+                </View>
+              </View>
 
               <FlatList
                 data={packingLocal}
@@ -699,7 +623,7 @@ const styles = (width, height) => ({
     borderColor: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden",
-    height: height * 0.5
+    height: height * 0.5,
   },
 
   tableHeader: {
@@ -742,13 +666,13 @@ const styles = (width, height) => ({
     paddingVertical: 12,
     borderRadius: 8,
   },
-deleteBtn: {
-  width: 70,
-  justifyContent: "center",
-  alignItems: "center",
-  borderLeftWidth: 1,
-  borderColor: "#e5e7eb",
-},
+  deleteBtn: {
+    width: 70,
+    justifyContent: "center",
+    alignItems: "center",
+    borderLeftWidth: 1,
+    borderColor: "#e5e7eb",
+  },
   forwardText: { color: "#fff", fontWeight: "700" },
 });
 

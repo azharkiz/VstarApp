@@ -153,8 +153,10 @@ const modifiedItems = Object.fromEntries(
       status: "true",
       data: itemsScannedProduct?.[localProductDetails?.fileName],
     };
-    console.log("payload", payload);
-    console.log("packedProductPayload", packedProductPayload);
+
+   
+    // console.log("payload", payload);
+    // console.log("packedProductPayload", itemsScannedProduct);
     dispatch(generatePdf(payload))
       .unwrap()
       .then((res) => {
@@ -183,6 +185,14 @@ const modifiedItems = Object.fromEntries(
     >
       <Text style={styles.rowText}>{item.label}</Text>
       <Ionicons name="arrow-forward" size={20} color="#444" />
+
+             
+              {/* <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDeleteItem(item)}
+              >
+                <Ionicons name="trash-outline" size={20} color="#dc2626" />
+              </TouchableOpacity> */}
     </TouchableOpacity>
   ),
   [handleBoxPress],
@@ -381,6 +391,13 @@ forwardBtn: {
 },
 
   forwardText: { color: "#fff", fontWeight: "700" },
+   deleteBtn: {
+    width: 70,
+    justifyContent: "center",
+    alignItems: "center",
+    borderLeftWidth: 1,
+    borderColor: "#e5e7eb",
+  },
 });
 
 export default CreatePacking;
