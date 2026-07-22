@@ -56,6 +56,8 @@ const PackingScan = (props) => {
   const targetKey = normalizeFileName(sourceFileName + targetFileName);
   const sourceData = scannedDataByFileNew[sourceKey] || [];
   // const reduxPackingData = packingDataByFile[targetKey] || [];
+  console.log("PackingScan: sourceData", JSON.stringify(packingDataByFile));
+  console.log("scanning Update ---", JSON.stringify(scannedDataByFileNew));
 
   const [qrcode, setQrcode] = useState("");
   const [packingLocal, setPackingLocal] = useState([]);
@@ -68,26 +70,56 @@ const PackingScan = (props) => {
     screenContext[screenContext.isPortrait ? "windowHeight" : "windowWidth"];
   const s = styles(width, height);
 
-  useEffect(() => {
-    const materialTotals = {};
+ useEffect(() => {
+  const materialTotals = {};
 
-    Object.values(packingDataByFile)
-      .flat()
-      .forEach((item) => {
-        materialTotals[item.Material] =
-          (materialTotals[item.Material] || 0) + Number(item.packed || 0);
-      });
+  // Total packed quantity across all packing files
+  Object.values(packingDataByFile)
+    .flat()
+    .forEach((item) => {
+      materialTotals[item.Material] =
+        (materialTotals[item.Material] || 0) + Number(item.packed || 0);
+    });
 
-    const updated = (packingDataByFile[targetKey] || []).map((item) => ({
+  // Flatten latest scanned data
+  const scannedItems = Object.values(scannedDataByFileNew || {}).flat();
+
+  const updated = (packingDataByFile[targetKey] || []).map((item) => {
+    const matchedScan = scannedItems.find(
+      (scan) => String(scan.Material) === String(item.Material)
+    );
+
+    // Take latest scanned qty if it has changed
+    const scannedQty = matchedScan
+      ? Number(matchedScan.Scanned_Qty || 0)
+      : Number(item.Scanned_Qty || 0);
+
+    const packedQty = materialTotals[item.Material] || 0;
+
+    const remainingQty = Math.max(0, scannedQty - packedQty);
+
+    return {
       ...item,
-      remainingQty: Math.max(
-        0,
-        Number(item.Scanned_Qty) - (materialTotals[item.Material] || 0),
-      ),
-    }));
+      Scanned_Qty: scannedQty,
+      remainingQty,
+      status:
+        remainingQty === 0
+          ? "done"
+          : packedQty > 0
+          ? "partial"
+          : "",
+    };
+  });
 
-    setReduxPackingData(updated);
-  }, [packingDataByFile, targetKey]);
+  setReduxPackingData(updated);
+
+  // Keep blocked materials in sync
+  setBlockedMaterials(
+    updated
+      .filter((item) => item.status === "done")
+      .map((item) => item.Material)
+  );
+}, [packingDataByFile, scannedDataByFileNew, targetKey]);
   /* ---------------- redux → local sync (SAFE) ---------------- */
 
   useEffect(() => {

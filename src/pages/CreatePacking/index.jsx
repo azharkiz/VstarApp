@@ -131,7 +131,7 @@ const modifiedItems = Object.fromEntries(
   Object.entries(items).map(([key, value]) => {
     const newKey = String(key)
       .trim()
-      .replace(/^([A-Za-z]+\d+)([A-Za-z].*)$/, "$1#$2");
+      .replace(/^([A-Za-z]+\d+)(.+)$/, "$1#$2");
 
     return [newKey, value];
   })
