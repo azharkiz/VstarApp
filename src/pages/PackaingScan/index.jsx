@@ -56,8 +56,8 @@ const PackingScan = (props) => {
   const targetKey = normalizeFileName(sourceFileName + targetFileName);
   const sourceData = scannedDataByFileNew[sourceKey] || [];
   // const reduxPackingData = packingDataByFile[targetKey] || [];
-  console.log("PackingScan: sourceData", JSON.stringify(packingDataByFile));
-  console.log("scanning Update ---", JSON.stringify(scannedDataByFileNew));
+  // console.log("PackingScan: sourceData", packingDataByFile);
+  // console.log("scanning Update ---", scannedDataByFileNew);
 
   const [qrcode, setQrcode] = useState("");
   const [packingLocal, setPackingLocal] = useState([]);
@@ -248,17 +248,17 @@ const PackingScan = (props) => {
       }
 
       // Prevent over packing
-      if (Number(scannedQty) > remainingQty) {
-        playSound();
+      // if (Number(scannedQty) > remainingQty) {
+      //   playSound();
 
-        showAlert(
-          "Packed quantity exceeds remaining quantity",
-          `Remaining quantity: ${remainingQty}`,
-        );
+      //   showAlert(
+      //     "Packed quantity exceeds remaining quantity",
+      //     `Remaining quantity: ${remainingQty}`,
+      //   );
 
-        setQrcode("");
-        return;
-      }
+      //   setQrcode("");
+      //   return;
+      // }
 
       const newPacked = Number(existing.packed || 0) + Number(scannedQty);
 
@@ -266,9 +266,9 @@ const PackingScan = (props) => {
 
       const status = newRemainingQty === 0 ? "done" : "partial";
 
-      console.log("newPacked", newPacked);
-      console.log("newRemainingQty", newRemainingQty);
-      console.log("status", status);
+      // console.log("newPacked", newPacked);
+      // console.log("newRemainingQty", newRemainingQty);
+      // console.log("status", status);
 
       updated = packingLocal.map((item, i) =>
         i === index
@@ -289,17 +289,17 @@ const PackingScan = (props) => {
       // First scan
       const allowedQty = Number(matched.Scanned_Qty);
 
-      if (Number(scannedQty) > allowedQty) {
-        playSound();
+      // if (Number(scannedQty) > allowedQty) {
+      //   playSound();
 
-        showAlert(
-          "Packed quantity exceeds scanned quantity",
-          `Allowed quantity: ${allowedQty}`,
-        );
+      //   showAlert(
+      //     "Packed quantity exceeds scanned quantity",
+      //     `Allowed quantity: ${allowedQty}`,
+      //   );
 
-        setQrcode("");
-        return;
-      }
+      //   setQrcode("");
+      //   return;
+      // }
 
       const remainingQty = Math.max(0, allowedQty - Number(scannedQty));
 
@@ -464,22 +464,22 @@ const PackingScan = (props) => {
             );
 
             // also remove from scannedDataNew for the source file (compare Material)
-            const existingSource = Array.isArray(
-              scannedDataByFileNew?.[sourceKey],
-            )
-              ? scannedDataByFileNew[sourceKey]
-              : [];
+            // const existingSource = Array.isArray(
+            //   scannedDataByFileNew?.[sourceKey],
+            // )
+            //   ? scannedDataByFileNew[sourceKey]
+            //   : [];
 
-            const updatedSource = existingSource.filter(
-              (i) => i.Material !== itemToDelete.Material,
-            );
+            // const updatedSource = existingSource.filter(
+            //   (i) => i.Material !== itemToDelete.Material,
+            // );
 
-            dispatch(
-              setScannedDataNew({
-                fileName: sourceKey,
-                data: updatedSource.length ? updatedSource : null, // delete entry if empty
-              }),
-            );
+            // dispatch(
+            //   setScannedDataNew({
+            //     fileName: sourceKey,
+            //     data: updatedSource.length ? updatedSource : null, // delete entry if empty
+            //   }),
+            // );
             setTimeout(() => {
               props.navigation.dispatch(
                 CommonActions.reset({

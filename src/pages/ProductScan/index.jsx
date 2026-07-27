@@ -29,6 +29,9 @@ import {
   setBoxList,
   setPackingData,
   setBoxCode,
+   setPackingDataByFileDelete,
+  setBoxListDelete,
+  setBoxCodeDelete,
 } from "../../services/redux/slice/outBoundSlice";
 
 /* ---------------- helpers ---------------- */
@@ -74,6 +77,8 @@ const ProductScan = (props) => {
     productSavedSatus,
     packingDataByFile,
     itemsScannedProduct,
+    BoxList,
+    boxCode,
   } = useSelector(selectOutBound);
   const key = normalizeFileName(fileName);
   console.log("itemsScanning -:", itemsScanning);
@@ -221,20 +226,20 @@ const ProductScan = (props) => {
 
       const newScanned = existing.Scanned_Qty + scannedQty;
 
-      if (!toleranceStar && newScanned > existing.qty) {
-        playSound();
+      // if (!toleranceStar && newScanned > existing.qty) {
+      //   playSound();
 
-        showAlert(
-          "Scanned quantity exceeds allowed quantity",
-          `Remaining quantity: ${Math.max(
-            0,
-            existing.qty - existing.Scanned_Qty,
-          )}`,
-        );
+      //   showAlert(
+      //     "Scanned quantity exceeds allowed quantity",
+      //     `Remaining quantity: ${Math.max(
+      //       0,
+      //       existing.qty - existing.Scanned_Qty,
+      //     )}`,
+      //   );
 
-        setBarcode("");
-        return;
-      }
+      //   setBarcode("");
+      //   return;
+      // }
 
       const status =
         newScanned >= existing.qty && !toleranceStar ? "done" : "partial";
@@ -256,11 +261,13 @@ const ProductScan = (props) => {
       if (!toleranceStar && scannedQty > totalQty) {
         playSound();
 
-        showAlert(
-          "Scanned quantity exceeds allowed quantity",
-          `Total required: ${totalQty}`,
-        );
-
+        // showAlert(
+        //   "Scanned quantity exceeds allowed quantity",
+        //   `Total required: ${totalQty}`,
+        // );
+          showAlert(
+            "Invalid scanning...",
+          );
         setBarcode("");
         return;
       }
@@ -387,10 +394,28 @@ const ProductScan = (props) => {
               }),
             );
           }
+           const updatedBoxList = { ...BoxList };
+  delete updatedBoxList[key];
+
+  const updatedBoxCode = { ...boxCode };
+  delete updatedBoxCode[key];
+
+  const updatedPackingDeleted = Object.fromEntries(
+    Object.entries(packingDataByFile).filter(
+      ([k]) => !k.startsWith(key)
+    )
+  );
+                      dispatch(setBoxListDelete(updatedBoxList));
+                      dispatch(setBoxCodeDelete(updatedBoxCode));
+                      dispatch(setPackingDataByFileDelete(updatedPackingDeleted));
         },
       },
     ]);
   };
+
+   console.log("packed sir ---", JSON.stringify(packingDataByFile));
+    console.log("BoxList ---", JSON.stringify(BoxList));
+    console.log("boxCode ---", JSON.stringify(boxCode));
 
   /* ---------------- rescan ---------------- */
 

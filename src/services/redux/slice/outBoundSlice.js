@@ -218,6 +218,27 @@ const outBoundSlice = createSlice({
     state.packingDataByFile[key] = data;
   }
 },
+setPackingDataByFileDelete: (state, action) => {
+    state.packingDataByFile = action.payload ?? {};
+},
+setBoxListDelete: (state, action) => {
+    state.BoxList = action.payload ?? {};
+},
+
+// setBoxCodeDelete: (state, action) => {
+//     state.boxCode = action.payload ?? {};
+// },
+setBoxCodeDelete: (state, action) => {
+const { fileName, boxName } = action.payload;
+
+if (!state.boxCode[fileName]) return;
+
+delete state.boxCode[fileName][boxName];
+
+if (Object.keys(state.boxCode[fileName]).length === 0) {
+  delete state.boxCode[fileName];
+}
+},
 setBoxList: (state, action) => {
   const { fileName, data } = action.payload;
   const base =
@@ -343,7 +364,7 @@ setBoxList: (state, action) => {
   },
 })
 
-export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct,setProductSaved, setitemsScannedProduct, setProductScanDetails } = outBoundSlice.actions;
+export const { clearOutBound, clearOutBoundDetails, setScannedData, setBoxList, setBoxCode, setPackingData, resetOutBoundState, setDeliveryCodes, setScannedDataNew, resetScannedData, localProduct,setProductSaved, setitemsScannedProduct, setProductScanDetails, setPackingDataByFileDelete, setBoxListDelete, setBoxCodeDelete } = outBoundSlice.actions;
 
 export const selectOutBound = (state) => {
   const slice = state?.outbound ?? {};
