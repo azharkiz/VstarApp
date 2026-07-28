@@ -197,15 +197,19 @@ console.log("itemsScannedProduct ===----", itemsScannedProduct[key], JSON.string
             let afterDelelteUpdatedBoxList = { ...BoxList }; // create a shallow copy of BoxList
             afterDelelteUpdatedBoxList[key] = afterDelelteUpdatedBoxList[
               key
-            ].filter((item) => item.label !== itemToDelete.label);
-            const updatedBoxCode = {
-              ...boxCode,
-              [key]: Object.fromEntries(
-                Object.entries(boxCode[key]).filter(
-                  ([boxKey]) => boxKey !== itemToDelete.label,
-                ),
-              ),
-            };
+            ]?.filter((item) => item.label !== itemToDelete.label);
+           if (!boxCode?.[key]) {
+  return;
+}
+
+const updatedBoxCode = {
+  ...boxCode,
+  [key]: Object.fromEntries(
+    Object.entries(boxCode[key]).filter(
+      ([boxKey]) => boxKey !== itemToDelete?.label
+    )
+  ),
+};
             console.log("updatedBoxCode ----", updatedBoxCode, itemToDelete);
             const boxValue = boxCode[key][itemToDelete.label];
 
@@ -219,17 +223,20 @@ console.log("itemsScannedProduct ===----", itemsScannedProduct[key], JSON.string
                 return packedKey === `${key}${boxValue}`;
               }),
             );
-            const packedRemoved = Object.values(packedRemove)[0][0]?.packed;
-            const materialCode = Object.values(packedRemove)[0][0]?.Material;
-            const updateItemsScannedOne = itemsScannedProduct[key].map((item) => {
-              if (item.Material === materialCode) {
-                return {
-                  ...item,
-                  packed_qty:  Number(item.packed_qty) - packedRemoved,
-                };
-              }
-              return item;
-            });
+           const firstItem = Object.values(packedRemove ?? {})?.[0]?.[0];
+
+const packedRemoved = Number(firstItem?.packed ?? 0);
+const materialCode = firstItem?.Material ?? "";
+
+const updateItemsScannedOne = (itemsScannedProduct[key] ?? []).map((item) => {
+  if (item.Material === materialCode) {
+    return {
+      ...item,
+      packed_qty: Number(item.packed_qty ?? 0) - packedRemoved,
+    };
+  }
+  return item;
+});
               dispatch(
                   setitemsScannedProduct({
                     fileName: key,
